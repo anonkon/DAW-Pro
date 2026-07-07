@@ -22,7 +22,8 @@ class AnalyzeAccepted(BaseModel):
 
 class FrequencyBand(BaseModel):
     label: str
-    hz_range: tuple[float, float]
+    hz_low: float
+    hz_high: float
     project_db: float
     reference_db: float
 

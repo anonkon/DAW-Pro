@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import json
 import logging
+import time
 
 from ..config import settings
 from ..schemas import AnalysisResult, FrequencyBand, Persona, TimingMarker
 
 logger = logging.getLogger("dawpro.ai")
+
+_MAX_ATTEMPTS = 2
+_RETRY_DELAY_SEC = 2.0
 
 _BANDS = [
     ("low", 20.0, 250.0),
@@ -29,6 +34,9 @@ Rules:
   not generic mixing advice.
 - Ground every claim in the provided audio feature data — do not invent
   measurements you weren't given.
+- If reference_features is empty, no reference track has been analyzed for
+  this session yet — give feedback on the project audio alone and say so in
+  the summary, rather than inventing a comparison.
 """
 
 
@@ -56,7 +64,11 @@ def _gemini_result(
     from langchain_core.messages import HumanMessage, SystemMessage
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", google_api_key=settings.gemini_api_key)
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-pro",
+        google_api_key=settings.gemini_api_key,
+        temperature=0.3,  # analytical grounding matters more than variety here
+    )
     structured_llm = llm.with_structured_output(AnalysisResult)
 
     system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(
@@ -72,9 +84,19 @@ def _gemini_result(
     }
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=str(human_payload)),
+        HumanMessage(content=json.dumps(human_payload, default=str)),
     ]
-    return structured_llm.invoke(messages)
+
+    last_error: Exception | None = None
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            return structured_llm.invoke(messages)
+        except Exception as exc:  # noqa: BLE001 - transient API errors, retried once
+            last_error = exc
+            logger.warning("Gemini call failed (attempt %d/%d): %s", attempt, _MAX_ATTEMPTS, exc)
+            if attempt < _MAX_ATTEMPTS:
+                time.sleep(_RETRY_DELAY_SEC)
+    raise last_error  # type: ignore[misc]
 
 
 def _stub_result(project_features: dict, reference_features: dict) -> AnalysisResult:
@@ -83,7 +105,8 @@ def _stub_result(project_features: dict, reference_features: dict) -> AnalysisRe
     eq_comparison = [
         FrequencyBand(
             label=label,
-            hz_range=(lo, hi),
+            hz_low=lo,
+            hz_high=hi,
             project_db=project_bands.get(label, 0.0),
             reference_db=reference_bands.get(label, 0.0),
         )
