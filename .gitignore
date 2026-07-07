@@ -1,1 +1,17 @@
 .claude/
+
+# secrets
+.env
+.env.local
+
+# node / next.js
+**/node_modules/
+dashboard/.next/
+
+# python
+**/__pycache__/
+**/*.pyc
+backend/.venv/
+
+# JUCE / CMake build output
+plugin/build/
