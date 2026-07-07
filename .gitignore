@@ -12,6 +12,7 @@ dashboard/.next/
 **/__pycache__/
 **/*.pyc
 backend/.venv/
+backend/data/
 
 # JUCE / CMake build output
 plugin/build/

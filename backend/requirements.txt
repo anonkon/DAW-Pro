@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+
+demucs
+librosa
+soundfile
+numpy
+
+langchain
+langchain-core
+langchain-google-genai
+
+boto3
+supabase
