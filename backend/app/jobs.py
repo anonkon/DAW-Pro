@@ -7,6 +7,7 @@ from .ai.chain import analyze as ai_analyze
 from .personas import get_persona
 from .pipeline.demucs_separate import separate_stems
 from .pipeline.features import extract_features
+from .results_store import save_analysis_result
 from .schemas import AnalysisResult, AnalyzeRequest, JobStatus
 from .storage import save_audio, workspace_dir
 
@@ -55,6 +56,7 @@ async def run_pipeline(job_id: str, request: AnalyzeRequest, audio_bytes: bytes,
         )
 
         _set(job_id, status="done", progress=1.0, result=result)
+        await asyncio.to_thread(save_analysis_result, request.session_id, job_id, result)
     except Exception as exc:  # noqa: BLE001
         logger.exception("pipeline failed for job %s", job_id)
         _set(job_id, status="failed", error=str(exc))

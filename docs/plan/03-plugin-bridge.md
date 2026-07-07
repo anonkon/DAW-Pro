@@ -36,10 +36,11 @@ This keeps the plugin's C++ surface area small: no JSON result parsing, no chart
 - JUCE referenced via `add_subdirectory()` pointing at the unzipped `juce-8.0.14-windows` folder (already downloaded).
 - Toolchain: Visual Studio Build Tools 2022 (Desktop C++ workload) + CMake, both already installed by the user.
 - Build target: `VST3` only (`juce_add_plugin(... FORMATS VST3 ...)`).
+- **Gotcha (confirmed by an actual build):** a VST3-only target still needs `target_compile_definitions(DAWproBridge PUBLIC JUCE_VST3_CAN_REPLACE_VST2=0)`, or JUCE's VST3 wrapper hard-errors with "conflict with parameter automation between VST2 and VST3 versions." This is a preprocessor define, not a `juce_add_plugin(...)` keyword - passing it as a keyword silently gets absorbed into the preceding `VST3_CATEGORIES` string instead of erroring, which is a confusing failure mode.
 
 ## Manual test plan (user-driven)
 
-1. Build via CMake + Build Tools; confirm `.vst3` output lands in the standard VST3 folder (`C:\Program Files\Common Files\VST3`) or is manually copied there.
+1. ~~Build via CMake + Build Tools.~~ **Done** — `cmake -B build -DJUCE_DIR=C:/Tools/juce-8.0.14-windows/JUCE && cmake --build build --target DAWproBridge_VST3` compiles clean and produces `build/DAWproBridge_artefacts/Debug/VST3/DAWpro Bridge.vst3`. Copy (or symlink) it into `C:\Program Files\Common Files\VST3` so REAPER picks it up.
 2. Load REAPER, insert DAWpro on the master bus of a project with audio playing.
 3. Confirm **pass-through is transparent** — audio sounds identical with the plugin loaded vs. bypassed.
 4. Play audio for >60s, click Analyze, confirm the backend receives a WAV + correct BPM/time-sig (check via backend logs, per [[04-backend-engine]]).
