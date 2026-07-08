@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import librosa
 import numpy as np
 
 FREQ_BANDS = [
@@ -13,6 +12,8 @@ FREQ_BANDS = [
 
 
 def extract_features(audio_path: str) -> dict:
+    import librosa
+
     y, sr = librosa.load(audio_path, sr=None, mono=True)
     rms = librosa.feature.rms(y=y)[0]
     stft_mag = np.abs(librosa.stft(y))
