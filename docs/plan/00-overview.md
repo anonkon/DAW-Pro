@@ -64,9 +64,10 @@ Each decision below was made deliberately (via `/grill-me`) — read the "why" b
    *Why:* explicit user requirement — accounts should support multiple saved personas (skill level, preferred genres, mentorship tone) that shape how Gemini mentors that session.
    *How to apply:* see [[02-accounts-and-personas]] for the schema and how personas feed the Gemini prompt.
 
-5. **Storage split: Supabase for relational data, S3 for binary blobs.**
+5. **Storage split: Supabase for relational data, Cloudflare R2 for binary blobs.**
    *Why:* accounts/personas/sessions/results are queryable structured data that belongs in Postgres; audio files (uploads, captures, stems) are large binaries that don't belong in a DB row. Confirmed by user.
-   *How to apply:* Supabase rows reference S3 objects by key/URL, never store audio inline. See [[07-infra-storage]].
+   *Amended:* originally AWS S3 (matching the poster), swapped to Cloudflare R2 - same role (S3-API-compatible object storage), no AWS account needed, zero egress fees.
+   *How to apply:* Supabase rows reference R2 objects by key/URL, never store audio inline. See [[07-infra-storage]].
 
 6. **Gemini via Google AI Studio API key**, not Vertex AI.
    *Why:* AI Studio gives a working API key in ~2 minutes with no GCP project/billing/IAM setup. Vertex AI's enterprise features (VPC controls, quota mgmt, regional residency) have no use case here.

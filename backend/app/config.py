@@ -11,10 +11,10 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_service_key: str | None = None
 
-    aws_access_key_id: str | None = None
-    aws_secret_access_key: str | None = None
-    s3_bucket_name: str | None = None
-    aws_region: str = "us-east-1"
+    r2_account_id: str | None = None
+    r2_access_key_id: str | None = None
+    r2_secret_access_key: str | None = None
+    r2_bucket_name: str | None = None
 
 
 settings = Settings()
