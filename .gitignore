@@ -17,3 +17,8 @@ backend/data/
 
 # JUCE / CMake build output
 plugin/build/
+plugin/build-release/
+plugin/release_build.log
+
+# REAPER peak caches
+*.reapeaks

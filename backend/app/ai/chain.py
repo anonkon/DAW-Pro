@@ -65,7 +65,7 @@ def _gemini_result(
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-pro",
+        model="gemini-flash-latest",
         google_api_key=settings.gemini_api_key,
         temperature=0.3,  # analytical grounding matters more than variety here
     )
