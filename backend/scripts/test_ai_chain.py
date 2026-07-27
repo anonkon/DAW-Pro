@@ -1,8 +1,10 @@
-"""Standalone smoke test for the Gemini/LangChain analysis chain.
+"""Standalone smoke test for the LangChain analysis chain.
 
 Exercises app.ai.chain.analyze() directly with synthetic feature data, so it
-doesn't need Demucs/Librosa or an uploaded audio file - just a GEMINI_API_KEY
-in backend/.env. Run from the backend/ directory:
+doesn't need Demucs/Librosa or an uploaded audio file - just credentials for
+whichever provider LLM_PROVIDER selects in backend/.env (GEMINI_API_KEY by
+default; ANTHROPIC_API_KEY for "anthropic"; OPENAI_API_KEY + OPENAI_MODEL for
+"openai" - see .env.example). Run from the backend/ directory:
 
     python -m scripts.test_ai_chain
 """

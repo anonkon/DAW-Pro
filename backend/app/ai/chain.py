@@ -79,12 +79,21 @@ def analyze(
 ) -> AnalysisResult:
     measurements = build_measurements(project_features, reference_features, host_bpm)
 
-    if not settings.gemini_api_key:
-        logger.warning("GEMINI_API_KEY not set, returning measurements without AI narrative")
+    provider = settings.llm_provider.lower()
+    # For openai, a missing model id counts as "not configured" the same as a
+    # missing key - there's no default to fall back to (see config.py).
+    configured = {
+        "gemini": (settings.gemini_api_key, "GEMINI_API_KEY"),
+        "anthropic": (settings.anthropic_api_key, "ANTHROPIC_API_KEY"),
+        "openai": (settings.openai_api_key and settings.openai_model, "OPENAI_API_KEY / OPENAI_MODEL"),
+    }
+    api_key, env_var = configured.get(provider, configured["gemini"])
+    if not api_key:
+        logger.warning("%s not set, returning measurements without AI narrative", env_var)
         return _compose(
             MentorNarrative(
                 summary=(
-                    "GEMINI_API_KEY not configured — showing measured analysis "
+                    f"{env_var} not configured — showing measured analysis "
                     "without AI interpretation."
                 )
             ),
@@ -92,10 +101,48 @@ def analyze(
             project_features,
         )
 
-    narrative = _gemini_narrative(
+    narrative = _narrative(
         measurements, reference_features, persona, sonic_intention, genre, session_id
     )
     return _compose(narrative, measurements, project_features)
+
+
+def _build_llm():
+    """Return a LangChain chat model for the configured provider.
+
+    All three branches expose the same `.with_structured_output(...)`
+    interface, so nothing downstream of this function needs to know which
+    provider is active. `langchain-anthropic`/`langchain-openai` wrap the
+    official SDKs (not raw-HTTP shims) and implement structured output via
+    native tool-calling, matching the guarantee `with_structured_output`
+    already gives callers on the Gemini side.
+    """
+    provider = settings.llm_provider.lower()
+    if provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(
+            model=settings.anthropic_model,
+            anthropic_api_key=settings.anthropic_api_key,
+            temperature=0.3,
+        )
+
+    if provider == "openai":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=settings.openai_model,
+            api_key=settings.openai_api_key,
+            temperature=0.3,
+        )
+
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    return ChatGoogleGenerativeAI(
+        model="gemini-flash-latest",
+        google_api_key=settings.gemini_api_key,
+        temperature=0.3,  # analytical grounding matters more than variety here
+    )
 
 
 def _compose(
@@ -116,7 +163,7 @@ def _compose(
     )
 
 
-def _gemini_narrative(
+def _narrative(
     measurements: Measurements,
     reference_features: dict,
     persona: Persona,
@@ -125,13 +172,8 @@ def _gemini_narrative(
     session_id: str | None,
 ) -> MentorNarrative:
     from langchain_core.messages import HumanMessage, SystemMessage
-    from langchain_google_genai import ChatGoogleGenerativeAI
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-flash-latest",
-        google_api_key=settings.gemini_api_key,
-        temperature=0.3,  # analytical grounding matters more than variety here
-    )
+    llm = _build_llm()
     # Narrative only. Asking the model for the measured fields would mean asking
     # it to invent numbers it has no way to know.
     structured_llm = llm.with_structured_output(MentorNarrative)
@@ -164,7 +206,9 @@ def _gemini_narrative(
             return structured_llm.invoke(messages)
         except Exception as exc:  # noqa: BLE001 - transient API errors, retried once
             last_error = exc
-            logger.warning("Gemini call failed (attempt %d/%d): %s", attempt, _MAX_ATTEMPTS, exc)
+            logger.warning(
+                "%s call failed (attempt %d/%d): %s", settings.llm_provider, attempt, _MAX_ATTEMPTS, exc
+            )
             if attempt < _MAX_ATTEMPTS:
                 time.sleep(_RETRY_DELAY_SEC)
     raise last_error  # type: ignore[misc]

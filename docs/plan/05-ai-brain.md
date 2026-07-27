@@ -253,6 +253,35 @@ only, hand-selected into `knowledge/base.py`.
   `features.py` already keeps a low-confidence detection from reaching
   `Measurements.key` at all, so no separate confidence check was needed here).
 
+## Multi-provider LLM support
+
+`llm_provider` (env var, `config.py`) selects which LLM backs the mentor
+narrative call: `"gemini"` (default), `"anthropic"`, or `"openai"`. All three
+go through the same LangChain `.with_structured_output(MentorNarrative)`
+interface, so `_narrative()`'s system prompt, human payload, session
+history, knowledge retrieval, and retry logic in `chain.py` are entirely
+provider-agnostic — only `_build_llm()` branches on `llm_provider` to
+construct `ChatGoogleGenerativeAI`, `ChatAnthropic`, or `ChatOpenAI`.
+
+**Why not AgentKit.** Considered when this was requested: OpenAI's AgentKit
+is a visual multi-agent workflow builder (Agent Builder canvas, Connector
+Registry, ChatKit embeddable UI), aimed at orchestrating complex multi-step
+agent pipelines — a mismatch for "call one LLM with structured output, let
+the caller pick the provider." OpenAI is also winding down Agent Builder and
+Evals from November 30, 2026. The existing LangChain-based approach already
+had the right shape; it just needed extending to more providers, not
+replacing with new infrastructure.
+
+**Model IDs.** `anthropic_model` defaults to `claude-opus-5` (this
+environment's current strongest Claude model) but is env-overridable rather
+than hardcoded without an escape hatch. `openai_model` has **no default at
+all** — there was no OpenAI model ID available to hardcode with confidence,
+so `analyze()` treats a missing `OPENAI_MODEL` the same as a missing API
+key: falls back to the existing "measurements without AI narrative" path
+rather than risking a call to a wrong/nonexistent model string. Gemini's
+model stays hardcoded to `"gemini-flash-latest"`, a stable alias, unchanged
+from before this work.
+
 ## Error handling
 
 Wrap the `structured_llm.invoke()` call with a single retry on transient failures (rate limit / timeout) — no elaborate backoff strategy needed at demo scale, just enough to not fail a whole analysis on one flaky call. Any unrecoverable failure surfaces as `JobStatus.status = "failed"` with the exception message in `error` (per [[04-backend-engine]]).
