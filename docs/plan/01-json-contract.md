@@ -46,9 +46,13 @@ class JobStatus(BaseModel):
     result: "AnalysisResult | None" = None   # populated only when status == "done"
 ```
 
-## `AnalysisResult` — the AI's structured diagnosis
+## `AnalysisResult` — measurements plus the AI's reading of them
 
-This is what Gemini returns (via LangChain structured output, see [[05-ai-brain]]) and what the dashboard renders (see [[06-dashboard]]).
+Split in two. **Measurements** are computed in `backend/app/pipeline/` and never
+touch the model. **Narrative** is Gemini's entire structured-output surface (via
+LangChain, see [[05-ai-brain]]). The dashboard renders both (see [[06-dashboard]]).
+
+### Measured — computed, never generated
 
 ```python
 class FrequencyBand(BaseModel):
@@ -58,29 +62,88 @@ class FrequencyBand(BaseModel):
     project_db: float     # RMS energy in this band for the user's project
     reference_db: float   # same, for the reference track
 
-class TimingMarker(BaseModel):
-    time_sec: float
-    label: str             # e.g. "kick/bass clash", "transient smeared"
-    severity: Literal["info", "warning", "critical"]
+class SpectrumPoint(BaseModel):
+    hz: float
+    db: float
 
+class SpectrumComparison(BaseModel):
+    project: list[SpectrumPoint]      # 64 log-spaced points, 20Hz-20kHz
+    reference: list[SpectrumPoint]
+
+class TimingEvent(BaseModel):
+    reference_sec: float
+    project_sec: float | None = None
+    delta_ms: float | None = None     # positive = project hit is late
+    severity: Literal["info", "warning", "critical"] = "info"
+
+class TimingAnalysis(BaseModel):
+    rhythmic_cohesion: float | None = None    # 0-100, phase concentration on the grid
+    timing_offset_ms: float | None = None     # systematic; positive = behind
+    timing_scatter_ms: float | None = None    # looseness around that offset
+    grid_source: Literal["host_bpm", "estimated"] | None = None
+    events: list[TimingEvent] = []
+
+class PhaseAnalysis(BaseModel):
+    correlation: float | None = None   # -1..+1 L/R Pearson; None when source is mono
+    verdict: Literal["mono", "in_phase", "wide", "problematic"] | None = None
+
+class Loudness(BaseModel):
+    peak_db: float | None = None
+    rms_db: float | None = None
+
+class LoudnessComparison(BaseModel):
+    project: Loudness
+    reference: Loudness
+
+class Measurements(BaseModel):
+    eq_comparison: list[FrequencyBand]
+    spectrum: SpectrumComparison
+    timing: TimingAnalysis
+    phase: PhaseAnalysis
+    loudness: LoudnessComparison
+    tempo_bpm: float | None = None
+```
+
+### Narrative — the model's whole output surface
+
+```python
 class MixIssue(BaseModel):
     title: str
     description: str       # guidance-toward-exploration tone, not a prescriptive fix
     severity: Literal["info", "warning", "critical"]
     related_band: str | None = None   # references FrequencyBand.label, if applicable
+    hz_low: float | None = None       # anchors the callout onto the spectrum curve
+    hz_high: float | None = None
 
+class MentorNarrative(BaseModel):
+    summary: str                          # short chat-bubble-style message
+    issues: list[MixIssue] = []
+    suggested_exploration: str | None = None   # one thing to try, as an invitation
+    suggested_path: str | None = None          # short label for that direction
+```
+
+### Combined
+
+```python
 class AnalysisResult(BaseModel):
-    summary: str                       # short chat-bubble-style message
-    eq_comparison: list[FrequencyBand]
-    timing_markers: list[TimingMarker]
-    issues: list[MixIssue]
-    mix_score: float | None = None     # 0-100, optional single-number takeaway
+    summary: str
+    issues: list[MixIssue] = []
+    suggested_exploration: str | None = None
+    suggested_path: str | None = None
+    measurements: Measurements
+    eq_comparison: list[FrequencyBand] = []   # also at top level; predates measurements
+    timing_markers: list[TimingMarker] = []
+    mix_score: float | None = None
 ```
 
 ## Design notes
 
 - **Guardrail is structural, not just prompted:** `MixIssue.description` is documented as "guidance-toward-exploration," matching the poster's stated philosophy ("we would never give a user specific instructions unless instructed to do so"). Enforced in the Gemini system prompt ([[05-ai-brain]]), but calling it out here keeps the contract self-documenting.
-- **`eq_comparison` is a fixed small band list** (5 bands), not raw FFT bins — the dashboard renders this directly as a comparative bar/curve without needing to do its own frequency-binning logic.
+- **The model is never asked for a measurement.** Its structured output is `MentorNarrative`, not `AnalysisResult`. Anything numeric — band energies, cohesion, phase, peaks — is computed and handed to it as context. An LLM asked to emit `project_db` can only guess, and a plausible fabricated number is worse than no number.
+- **`eq_comparison` is a fixed small band list** (5 bands) for the model to reason over; `spectrum` carries the 64-point curve the dashboard draws. Two resolutions, two purposes.
+- **Timing is scored against the host BPM when available.** The plugin forwards Ableton's tempo, which is authoritative. A grid inferred from the audio drifts along with whatever timing error is being measured, making the result circular — `grid_source` records which was used so the dashboard can qualify the reading.
+- **Cohesion and offset are separate numbers.** A part sitting consistently behind the beat is tight and intentional; random scatter is not. Collapsing both into one "timing accuracy" figure would call them the same thing.
+- **`null` means not measurable, not zero.** A null `phase.correlation` means the source was mono, where the measurement is undefined — distinct from a measured `0.0`, which means a fully decorrelated stereo field.
 - **`progress` is coarse (stage-based), not fine-grained.** A real percentage would require instrumenting Demucs/Librosa internals for marginal UX gain — not worth it at this scope.
 - **`job_id` is a UUID string**, generated by the backend on `POST /analyze`, used as the in-memory job-store key (see [[04-backend-engine]]).
 - **No tuple fields anywhere in this schema.** `FrequencyBand` uses `hz_low`/`hz_high` floats rather than a `hz_range` tuple — Pydantic serializes tuples to JSON Schema via `prefixItems`, which Gemini's structured-output schema format (a restricted OpenAPI subset) doesn't support. Keep this in mind before adding new fields: stick to primitives, plain lists, and objects.

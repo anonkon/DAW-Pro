@@ -36,28 +36,26 @@ void CaptureBuffer::push(const juce::AudioBuffer<float>& block) noexcept
     totalSamplesWritten.fetch_add(numSamples, std::memory_order_relaxed);
 }
 
-juce::AudioBuffer<float> CaptureBuffer::snapshot() const
+juce::AudioBuffer<float> CaptureBuffer::snapshot(int maxSamples) const
 {
     const int64_t total = totalSamplesWritten.load(std::memory_order_relaxed);
+    const int filled = (int) juce::jmin<int64_t>(total, capacitySamples);
 
-    if (total <= capacitySamples)
-    {
-        const int available = (int) total;
-        juce::AudioBuffer<float> result(storage.getNumChannels(), available);
-        for (int ch = 0; ch < storage.getNumChannels(); ++ch)
-            result.copyFrom(ch, 0, storage, ch, 0, available);
-        return result;
-    }
+    // maxSamples <= 0 means "everything held", which is the whole buffer.
+    const int available = maxSamples > 0 ? juce::jmin(filled, maxSamples) : filled;
+    if (available <= 0)
+        return {};
 
-    const int available = capacitySamples;
-    const int oldestPos = (int) (total % capacitySamples);
-    const int firstChunk = capacitySamples - oldestPos;
-    const int secondChunk = oldestPos;
+    // The newest `available` samples end at the write head and run backwards.
+    const int writePos = (int) (total % capacitySamples);
+    const int startPos = ((writePos - available) % capacitySamples + capacitySamples) % capacitySamples;
+    const int firstChunk = juce::jmin(available, capacitySamples - startPos);
+    const int secondChunk = available - firstChunk;
 
     juce::AudioBuffer<float> result(storage.getNumChannels(), available);
     for (int ch = 0; ch < storage.getNumChannels(); ++ch)
     {
-        result.copyFrom(ch, 0, storage, ch, oldestPos, firstChunk);
+        result.copyFrom(ch, 0, storage, ch, startPos, firstChunk);
         if (secondChunk > 0)
             result.copyFrom(ch, firstChunk, storage, ch, 0, secondChunk);
     }

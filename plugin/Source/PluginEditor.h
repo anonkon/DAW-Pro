@@ -1,9 +1,18 @@
 #pragma once
 
-#include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-class DAWproBridgeEditor : public juce::AudioProcessorEditor, private juce::Timer
+/** The editor is a WebBrowserComponent hosting web/index.html.
+ *
+ *  It shares tokens.css with the dashboard verbatim (CMake copies the file in),
+ *  so the plugin and the web app cannot drift apart visually. The alternative -
+ *  a JUCE LookAndFeel - would mean maintaining the same palette in two places
+ *  and hand-drawing the spectrum in juce::Graphics.
+ */
+class DAWproBridgeEditor : public juce::AudioProcessorEditor,
+                            private juce::ChangeListener,
+                            private juce::Timer
 {
 public:
     explicit DAWproBridgeEditor(DAWproBridgeProcessor&);
@@ -13,19 +22,18 @@ public:
     void resized() override;
 
 private:
+    void changeListenerCallback(juce::ChangeBroadcaster*) override;
     void timerCallback() override;
-    void analyzeButtonClicked();
+
+    juce::String settingsJson() const;
+    juce::String statusJson() const;
+    juce::String connectionJson() const;
+
+    static std::optional<juce::WebBrowserComponent::Resource> provideResource(const juce::String& url);
 
     DAWproBridgeProcessor& processorRef;
-
-    juce::Label titleLabel;
-    juce::TextEditor backendUrlEditor;
-    juce::TextEditor sessionIdEditor;
-    juce::TextEditor personaIdEditor;
-    juce::TextEditor sonicIntentionEditor;
-    juce::TextEditor genreEditor;
-    juce::TextButton analyzeButton { "Analyze" };
-    juce::Label statusLabel;
+    juce::WebBrowserComponent webView;
+    juce::uint32 lastBackendRefresh = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DAWproBridgeEditor)
 };

@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DAWpro Bridge</title>
+    <!-- The dashboard's token file, copied in at build time by CMakeLists.txt.
+         Same file, same values - the two surfaces cannot drift apart. -->
+    <link rel="stylesheet" href="tokens.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 14px;
+        background: var(--surface-base); color: var(--text-primary);
+        font-family: var(--font-sans); font-size: var(--text-small);
+        -webkit-font-smoothing: antialiased; user-select: none;
+      }
+      header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+      .mark {
+        width: 26px; height: 26px; border-radius: var(--radius-sm);
+        border: 1px solid var(--accent); color: var(--accent);
+        display: grid; place-items: center; font-weight: 700; font-size: 13px;
+      }
+      .brand { font-weight: 600; }
+      .conn { margin-left: auto; display: flex; align-items: center; gap: 6px; cursor: default; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+      .dot.ok { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+      .dot.down { background: var(--status-critical); }
+
+      label { display: block; margin-bottom: 8px; }
+      input, select {
+        width: 100%; margin-top: 4px; padding: 7px 9px;
+        background: var(--surface-raised); color: var(--text-primary);
+        border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+        font-family: inherit; font-size: var(--text-small);
+      }
+      input { user-select: text; }
+      input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+      input::placeholder { color: var(--text-muted); }
+      .row { display: flex; gap: 8px; }
+      .row > * { flex: 1; min-width: 0; }
+      .check { display: flex; align-items: center; gap: 7px; margin: 2px 0 10px; }
+      .check input { width: auto; margin: 0; accent-color: var(--accent); }
+
+      /* --- live meters --- */
+      .live { margin: 10px 0; }
+      canvas#live { width: 100%; height: 96px; display: block;
+        background: var(--surface-panel); border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm); }
+      .legend { display: flex; gap: 12px; margin-top: 4px; color: var(--text-muted); font-size: var(--text-label); }
+      .swatch { display: inline-block; width: 12px; height: 2px; border-radius: 1px; vertical-align: middle; margin-right: 4px; }
+
+      .meters { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+      .meter { flex: 1; }
+      .bar { height: 4px; border-radius: 2px; background: var(--surface-raised); overflow: hidden; }
+      .bar > i { display: block; height: 100%; width: 0%; background: var(--viz-project); transition: width 60ms linear; }
+      .bar.hot > i { background: var(--status-critical); }
+      /* Correlation runs -1..+1, so it is drawn from the centre outwards. */
+      .corr { position: relative; height: 4px; border-radius: 2px; background: var(--surface-raised); }
+      .corr > i { position: absolute; top: 0; bottom: 0; background: var(--accent); border-radius: 2px; }
+      .corr::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--border-strong); }
+
+      button {
+        padding: 9px; border: 0; border-radius: var(--radius-sm);
+        font-family: inherit; font-size: var(--text-small); font-weight: 600; cursor: pointer;
+      }
+      button.primary { width: 100%; background: var(--accent); color: var(--text-on-accent); margin-top: 4px; }
+      button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+      button.primary:disabled { opacity: 0.4; cursor: default; }
+      button.ghost {
+        background: transparent; color: var(--text-secondary);
+        border: 1px solid var(--border-default); font-weight: 500; padding: 6px 10px;
+      }
+      button.ghost:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+      .progress { height: 3px; border-radius: 2px; background: var(--surface-raised); overflow: hidden; margin-top: 8px; }
+      .progress > i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width 200ms ease; }
+      .status { margin-top: 8px; color: var(--text-secondary); }
+      .status.failed { color: var(--status-critical); }
+      .status.done { color: var(--accent); }
+
+      .panel { margin-top: 12px; padding: 10px; background: var(--surface-panel);
+        border: 1px solid var(--border-subtle); border-radius: var(--radius); }
+      .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+      .stat { background: var(--surface-raised); border-radius: var(--radius-sm); padding: 7px 9px; }
+      .stat b { display: block; font-family: var(--font-mono); font-size: 15px; font-weight: 500; margin-top: 2px; }
+      .issue { margin-top: 8px; padding: 7px 9px; border-left: 2px solid; border-radius: var(--radius-sm); }
+      .summary { margin: 6px 0 0; color: var(--text-secondary); line-height: 1.45; }
+      .hist { margin-top: 6px; padding: 6px 0; border-top: 1px solid var(--border-subtle); }
+      .hist:first-of-type { border-top: 0; }
+      .hist p { margin: 2px 0 0; color: var(--text-secondary); line-height: 1.4;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .hidden { display: none; }
+      .foot { display: flex; gap: 8px; margin-top: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="mark">D</span>
+      <span class="brand">DAWpro Bridge</span>
+      <span class="conn" id="conn" title="Backend connection">
+        <span class="dot" id="dot"></span><span class="label-caps" id="connLabel">Checking</span>
+      </span>
+    </header>
+
+    <!-- Live analysis, always on. The reference curve underneath comes from the
+         most recent backend analysis. -->
+    <section class="live">
+      <canvas id="live" width="800" height="192"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background: var(--viz-project)"></i>Live</span>
+        <span id="refLegend" class="hidden"><i class="swatch" style="background: var(--viz-reference)"></i>Reference</span>
+        <span id="bpm" style="margin-left:auto"></span>
+      </div>
+      <div class="meters">
+        <div class="meter">
+          <span class="label-caps">Input</span>
+          <div class="bar" id="levelWrap"><i id="level"></i></div>
+        </div>
+        <div class="meter">
+          <span class="label-caps">Correlation <b id="corrValue" style="font-weight:600"></b></span>
+          <div class="corr"><i id="corr"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <label>
+      <span class="label-caps">Session</span>
+      <select id="sessionSelect"><option value="">No backend connection</option></select>
+    </label>
+
+    <div class="row">
+      <label>
+        <span class="label-caps">Capture</span>
+        <select id="captureBars">
+          <option value="4">4 bars</option>
+          <option value="8">8 bars</option>
+          <option value="16">16 bars</option>
+          <option value="32">32 bars</option>
+          <option value="0">Everything held</option>
+        </select>
+      </label>
+      <label>
+        <span class="label-caps">Genre</span>
+        <input id="genre" placeholder="trap" />
+      </label>
+    </div>
+
+    <label>
+      <span class="label-caps">Sonic intention</span>
+      <input id="sonicIntention" placeholder="e.g. modern trap beat, wide low end" />
+    </label>
+
+    <div class="check">
+      <input type="checkbox" id="armToBar" />
+      <label for="armToBar" style="margin:0">Start capture on the next bar</label>
+    </div>
+
+    <button class="primary" id="analyze">Analyze</button>
+    <div class="progress hidden" id="progressWrap"><i id="progress"></i></div>
+    <p class="status" id="status">Idle - play some audio, then click Analyze</p>
+
+    <section class="panel hidden" id="results">
+      <span class="label-caps">Latest analysis</span>
+      <p class="summary" id="summary"></p>
+      <div class="stats">
+        <div class="stat"><span class="label-caps">Cohesion</span><b id="cohesion">—</b></div>
+        <div class="stat"><span class="label-caps">Offset</span><b id="offset">—</b></div>
+        <div class="stat"><span class="label-caps">Scatter</span><b id="scatter">—</b></div>
+        <div class="stat"><span class="label-caps">Phase</span><b id="phase">—</b></div>
+      </div>
+      <div id="issues"></div>
+    </section>
+
+    <section class="panel hidden" id="historyPanel">
+      <span class="label-caps">History</span>
+      <div id="history"></div>
+    </section>
+
+    <div class="foot">
+      <button class="ghost" id="openDashboard">Open in dashboard</button>
+      <button class="ghost" id="refresh">Refresh</button>
+    </div>
+
+    <details style="margin-top:12px">
+      <summary class="label-caps" style="cursor:pointer">Backend URL</summary>
+      <input id="backendUrl" spellcheck="false" placeholder="http://localhost:8000" />
+    </details>
+
+    <script type="module">
+      // JUCE injects window.__JUCE__.backend (events) natively, but
+      // getNativeFunction ships in this module. Importing it is what makes the
+      // JS -> C++ direction work at all; without it the UI still receives
+      // updates and looks alive while every button silently throws.
+      import * as Juce from "./juce_index.js";
+
+      const $ = (id) => document.getElementById(id);
+      const TEXT_FIELDS = ["backendUrl", "sonicIntention", "genre"];
+      const SEVERITY = {
+        info: ["--status-info", "--status-info-bg"],
+        warning: ["--status-warning", "--status-warning-bg"],
+        critical: ["--status-critical", "--status-critical-bg"],
+      };
+
+      // A failed native call used to disappear into an unhandled rejection,
+      // which is how a dead Analyze button went unnoticed. Surface it in the
+      // status line instead.
+      function native(name, arg) {
+        if (!window.__JUCE__?.backend) return Promise.resolve(null);
+        try {
+          return Juce.getNativeFunction(name)(arg).catch((e) => {
+            reportBridgeError(name, e);
+          });
+        } catch (e) {
+          reportBridgeError(name, e);
+          return Promise.resolve(null);
+        }
+      }
+
+      function reportBridgeError(name, error) {
+        const el = $("status");
+        el.className = "status failed";
+        el.textContent = `UI bridge error calling ${name}: ${error?.message ?? error}`;
+        console.error("native call failed", name, error);
+      }
+
+      let sessions = [];
+      let connected = false;
+      let referenceCurve = [];
+      let liveCurve = null;
+
+      // --- settings -> C++ -------------------------------------------------
+      function push(partial) { native("setSettings", partial); }
+
+      TEXT_FIELDS.forEach((f) => $(f).addEventListener("input", () => push({ [f]: $(f).value })));
+      $("captureBars").addEventListener("change", () => push({ captureBars: Number($("captureBars").value) }));
+      $("armToBar").addEventListener("change", () => push({ armToBar: $("armToBar").checked }));
+      $("sessionSelect").addEventListener("change", () => {
+        const chosen = sessions.find((s) => s.id === $("sessionSelect").value);
+        push({ sessionId: chosen?.id ?? "", personaId: chosen?.persona_id ?? "" });
+        native("refresh");
+      });
+      $("analyze").addEventListener("click", () => {
+        // Say why nothing will happen rather than firing a call that fails
+        // silently in the backend.
+        if (!connected) {
+          const el = $("status");
+          el.className = "status failed";
+          el.textContent = "Backend offline - start it, then press Refresh.";
+          return;
+        }
+        if (!$("sessionSelect").value) {
+          const el = $("status");
+          el.className = "status failed";
+          el.textContent = "Pick a session first.";
+          return;
+        }
+        native("analyze");
+      });
+      $("refresh").addEventListener("click", () => native("refresh"));
+      $("openDashboard").addEventListener("click", () => native("openDashboard"));
+
+      // --- C++ -> UI -------------------------------------------------------
+      function applySettings(s) {
+        if (!s) return;
+        TEXT_FIELDS.forEach((f) => {
+          if (document.activeElement !== $(f)) $(f).value = s[f] ?? "";
+        });
+        $("captureBars").value = String(s.captureBars ?? 16);
+        $("armToBar").checked = !!s.armToBar;
+        if (s.sessionId) $("sessionSelect").value = s.sessionId;
+      }
+
+      function applyStatus(st) {
+        if (!st) return;
+        const working = st.phase === "Working";
+        $("status").textContent = st.message ?? "";
+        $("status").className = "status " + (st.phase ?? "").toLowerCase();
+
+        // Queued jobs run independently, so the button stays live - only the
+        // label changes to show something is already in flight.
+        $("analyze").disabled = false;
+        $("analyze").textContent = st.armed
+          ? "Armed - waiting for the bar"
+          : st.activeJobs > 0
+            ? `Analyze (${st.activeJobs} running)`
+            : "Analyze";
+
+        $("progressWrap").classList.toggle("hidden", !working);
+        $("progress").style.width = Math.round((st.progress ?? 0) * 100) + "%";
+        $("bpm").textContent = st.bpm ? Math.round(st.bpm) + " BPM" : "";
+
+        if (st.resultJson) {
+          try { renderResult(JSON.parse(st.resultJson)); } catch (e) { /* keep last good */ }
+        }
+      }
+
+      function applyConnection(c) {
+        if (!c) return;
+        connected = !!c.reachable;
+        $("dot").className = "dot " + (!c.checked ? "" : c.reachable ? "ok" : "down");
+        $("connLabel").textContent = !c.checked ? "Checking" : c.reachable ? "Connected" : "Offline";
+
+        sessions = Array.isArray(c.sessions) ? c.sessions : [];
+        const select = $("sessionSelect");
+        const previous = select.value;
+        select.innerHTML = sessions.length
+          ? sessions.map((s) => `<option value="${s.id}">${escapeHtml(s.project_name)}</option>`).join("")
+          : `<option value="">${c.reachable ? "No sessions yet" : "No backend connection"}</option>`;
+        if (previous && sessions.some((s) => s.id === previous)) select.value = previous;
+
+        const history = Array.isArray(c.history) ? c.history : [];
+        $("historyPanel").classList.toggle("hidden", history.length === 0);
+        $("history").innerHTML = history
+          .map((h) => `<div class="hist">
+              <span class="label-caps">${formatWhen(h.created_at)}${
+                h.rhythmic_cohesion != null ? " · " + h.rhythmic_cohesion.toFixed(1) + "%" : ""
+              }</span>
+              <p>${escapeHtml(h.summary ?? "")}</p>
+            </div>`)
+          .join("");
+      }
+
+      function applyLive(d) {
+        if (!d) return;
+        const level = Math.min(Math.max(d.level ?? 0, 0), 1);
+        $("level").style.width = level * 100 + "%";
+        $("levelWrap").classList.toggle("hot", level > 0.98);
+
+        if (d.stereo) {
+          const c = Math.min(Math.max(d.correlation ?? 0, -1), 1);
+          $("corrValue").textContent = c.toFixed(2);
+          const bar = $("corr").firstElementChild ?? $("corr");
+          const el = $("corr");
+          const width = Math.abs(c) * 50;
+          el.style.setProperty("--w", width + "%");
+          const i = el.querySelector("i") ?? el;
+          i.style.left = c >= 0 ? "50%" : 50 - width + "%";
+          i.style.width = width + "%";
+          i.style.background = c < 0 ? "var(--status-critical)" : "var(--accent)";
+        } else {
+          $("corrValue").textContent = "mono";
+        }
+
+        if (d.valid && Array.isArray(d.db)) {
+          liveCurve = d.db;
+          draw();
+        }
+      }
+
+      function applyReference(points) {
+        referenceCurve = Array.isArray(points) ? points : [];
+        $("refLegend").classList.toggle("hidden", referenceCurve.length === 0);
+        draw();
+      }
+
+      // --- rendering -------------------------------------------------------
+      const HZ_MIN = 20, HZ_MAX = 20000, POINTS = 64;
+      const hzAt = (i) => HZ_MIN * Math.pow(HZ_MAX / HZ_MIN, i / (POINTS - 1));
+
+      function draw() {
+        const canvas = $("live");
+        const ctx = canvas.getContext("2d");
+        const dpr = window.devicePixelRatio || 1;
+        const w = (canvas.width = canvas.clientWidth * dpr);
+        const h = (canvas.height = canvas.clientHeight * dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        // Fixed dBFS range: an auto-range would make the curve jump every
+        // frame and destroy any sense of absolute level.
+        const LO = -90, HI = 0;
+        const css = getComputedStyle(document.documentElement);
+        const x = (hz) => (Math.log10(hz / HZ_MIN) / Math.log10(HZ_MAX / HZ_MIN)) * w;
+        const y = (db) => h - ((Math.min(Math.max(db, LO), HI) - LO) / (HI - LO)) * h;
+
+        ctx.strokeStyle = css.getPropertyValue("--viz-grid").trim();
+        ctx.lineWidth = 1;
+        [100, 1000, 10000].forEach((hz) => {
+          ctx.beginPath(); ctx.moveTo(x(hz), 0); ctx.lineTo(x(hz), h); ctx.stroke();
+        });
+        [-20, -40, -60].forEach((db) => {
+          ctx.beginPath(); ctx.moveTo(0, y(db)); ctx.lineTo(w, y(db)); ctx.stroke();
+        });
+
+        const stroke = (pts, colour, width) => {
+          if (!pts || pts.length === 0) return;
+          ctx.beginPath();
+          pts.forEach((p, i) => {
+            const px = x(p.hz ?? hzAt(i));
+            const py = y(p.db ?? p);
+            i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+          });
+          ctx.strokeStyle = css.getPropertyValue(colour).trim();
+          ctx.lineWidth = width * dpr;
+          ctx.lineJoin = "round";
+          ctx.stroke();
+        };
+
+        stroke(referenceCurve, "--viz-reference", 2);
+        stroke(liveCurve, "--viz-project", 2);
+      }
+
+      function renderResult(result) {
+        $("results").classList.remove("hidden");
+        $("summary").textContent = result.summary ?? "";
+        const m = result.measurements ?? {};
+        const t = m.timing ?? {};
+        const fmt = (v, unit, d = 0) => (v == null ? "—" : v.toFixed(d) + (unit ?? ""));
+        $("cohesion").textContent = fmt(t.rhythmic_cohesion, "%", 1);
+        $("offset").textContent = fmt(t.timing_offset_ms, " ms");
+        $("scatter").textContent = fmt(t.timing_scatter_ms, " ms");
+        $("phase").textContent = m.phase?.verdict === "mono" ? "Mono" : fmt(m.phase?.correlation, "", 2);
+
+        $("issues").innerHTML = (result.issues ?? []).slice(0, 2).map((i) => {
+          const [fg, bg] = SEVERITY[i.severity] ?? SEVERITY.info;
+          return `<div class="issue" style="border-color: var(${fg}); background: var(${bg})">
+              <span class="label-caps" style="color: var(${fg})">${i.severity}</span>
+              <div style="margin-top:2px">${escapeHtml(i.title ?? "")}</div>
+            </div>`;
+        }).join("");
+
+        const ref = m.spectrum?.reference;
+        if (Array.isArray(ref) && ref.length) applyReference(ref);
+      }
+
+      function escapeHtml(s) {
+        const d = document.createElement("div");
+        d.textContent = s ?? "";
+        return d.innerHTML;
+      }
+
+      function formatWhen(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return isNaN(d) ? "" : d.toLocaleString(undefined,
+          { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      }
+
+      window.addEventListener("resize", draw);
+
+      if (window.__JUCE__) {
+        const b = window.__JUCE__.backend;
+        b.addEventListener("settings", applySettings);
+        b.addEventListener("status", applyStatus);
+        b.addEventListener("connection", applyConnection);
+        b.addEventListener("live", applyLive);
+        b.addEventListener("reference", applyReference);
+
+        const initial = window.__JUCE__.initialisationData;
+        if (initial) {
+          if (initial.settings?.[0]) applySettings(JSON.parse(initial.settings[0]));
+          if (initial.status?.[0]) applyStatus(JSON.parse(initial.status[0]));
+          if (initial.connection?.[0]) applyConnection(JSON.parse(initial.connection[0]));
+          if (initial.reference?.[0]) applyReference(JSON.parse(initial.reference[0]));
+        }
+      }
+      draw();
+    </script>
+  </body>
+</html>

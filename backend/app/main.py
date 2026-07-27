@@ -6,7 +6,8 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 
 from .jobs import JOB_STORE, run_pipeline
-from .schemas import AnalyzeAccepted, AnalyzeRequest, JobStatus
+from .schemas import AnalysisEntry, AnalyzeAccepted, AnalyzeRequest, JobStatus, SessionSummary
+from .sessions_store import list_analyses, list_sessions
 
 app = FastAPI(title="DAWpro Backend")
 
@@ -62,3 +63,17 @@ def get_job(job_id: str) -> JobStatus:
     if job is None:
         raise HTTPException(404, "job not found")
     return job
+
+
+# Both of the following exist for the plugin: it has no Supabase client of its
+# own, and typing a session UUID into a plugin window by hand is miserable.
+
+
+@app.get("/sessions", response_model=list[SessionSummary])
+def get_sessions() -> list[SessionSummary]:
+    return [SessionSummary(**row) for row in list_sessions()]
+
+
+@app.get("/sessions/{session_id}/analyses", response_model=list[AnalysisEntry])
+def get_session_analyses(session_id: str) -> list[AnalysisEntry]:
+    return [AnalysisEntry(**row) for row in list_analyses(session_id)]

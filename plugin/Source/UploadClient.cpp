@@ -37,16 +37,41 @@ namespace
     }
 }
 
-juce::String UploadClient::sendCapturedAudio(const juce::AudioBuffer<float>& audio,
-                                              double sampleRate,
-                                              const AnalyzeParams& params)
+namespace
 {
+    // How long to keep polling before giving up. Demucs stem separation is the
+    // slow step and can run for minutes on a long capture.
+    constexpr int pollTimeoutMs = 10 * 60 * 1000;
+    constexpr int pollIntervalMs = 1000;
+
+    juce::String friendlyStage(const juce::String& status)
+    {
+        if (status == "queued") return "Queued";
+        if (status == "separating_stems") return "Separating stems";
+        if (status == "extracting_features") return "Extracting features";
+        if (status == "analyzing") return "Analyzing";
+        return status;
+    }
+}
+
+UploadClient::Response UploadClient::analyzeAndAwait(const juce::AudioBuffer<float>& audio,
+                                                      double sampleRate,
+                                                      const AnalyzeParams& params,
+                                                      ProgressFn onProgress,
+                                                      const std::atomic<bool>& cancelled)
+{
+    const auto report = [&onProgress](const juce::String& stage, float progress)
+    {
+        if (onProgress != nullptr)
+            onProgress(stage, progress);
+    };
+
     if (audio.getNumSamples() == 0)
-        return "Nothing captured yet";
+        return { false, "Nothing captured yet", {} };
 
     const juce::MemoryBlock wavData = encodeAsWav(audio, sampleRate);
     if (wavData.getSize() == 0)
-        return "Failed to encode captured audio as WAV";
+        return { false, "Failed to encode captured audio as WAV", {} };
 
     const juce::String boundary =
         "DAWproBoundary" + juce::String(juce::Random::getSystemRandom().nextInt64());
@@ -84,15 +109,65 @@ juce::String UploadClient::sendCapturedAudio(const juce::AudioBuffer<float>& aud
                               .withStatusCode(&statusCode)
                               .withResponseHeaders(&responseHeaders);
 
+    report("Uploading", 0.05f);
     std::unique_ptr<juce::InputStream> stream(url.createInputStream(options));
 
     if (stream == nullptr)
-        return "Could not connect to backend at " + params.backendUrl;
+        return { false, "Could not connect to backend at " + params.backendUrl, {} };
 
     const auto responseBody = stream->readEntireStreamAsString();
 
     if (statusCode < 200 || statusCode >= 300)
-        return "Backend returned " + juce::String(statusCode) + ": " + responseBody;
+        return { false, "Backend returned " + juce::String(statusCode) + ": " + responseBody, {} };
 
-    return "Sent - analysis running, check the dashboard";
+    const auto accepted = juce::JSON::parse(responseBody);
+    const auto jobId = accepted.getProperty("job_id", {}).toString();
+    if (jobId.isEmpty())
+        return { false, "Backend did not return a job id", {} };
+
+    // --- Poll until the job finishes -------------------------------------
+    const juce::String jobUrl = params.backendUrl.trimCharactersAtEnd("/") + "/jobs/" + jobId;
+    const auto deadline = juce::Time::getMillisecondCounter() + (juce::uint32) pollTimeoutMs;
+
+    while (juce::Time::getMillisecondCounter() < deadline)
+    {
+        if (cancelled.load(std::memory_order_relaxed))
+            return { false, "Cancelled - the analysis is still running, check the dashboard", {} };
+
+        juce::Thread::sleep(pollIntervalMs);
+
+        int jobStatusCode = 0;
+        const auto jobOptions = juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inAddress)
+                                     .withConnectionTimeoutMs(15000)
+                                     .withStatusCode(&jobStatusCode);
+
+        std::unique_ptr<juce::InputStream> jobStream(juce::URL(jobUrl).createInputStream(jobOptions));
+        if (jobStream == nullptr)
+            continue; // a dropped poll is not fatal; the next one may succeed
+
+        const auto jobBody = jobStream->readEntireStreamAsString();
+        if (jobStatusCode < 200 || jobStatusCode >= 300)
+            continue;
+
+        const auto job = juce::JSON::parse(jobBody);
+        const auto status = job.getProperty("status", {}).toString();
+        const auto progress = (float) (double) job.getProperty("progress", 0.0);
+
+        if (status == "done")
+        {
+            report("Done", 1.0f);
+            const auto result = job.getProperty("result", {});
+            return { true, "Analysis complete", juce::JSON::toString(result) };
+        }
+
+        if (status == "failed")
+        {
+            const auto error = job.getProperty("error", {}).toString();
+            return { false, "Analysis failed: " + error, {} };
+        }
+
+        report(friendlyStage(status), progress);
+    }
+
+    return { false, "Timed out waiting for the backend - check the dashboard", {} };
 }

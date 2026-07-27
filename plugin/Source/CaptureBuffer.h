@@ -18,8 +18,15 @@ class CaptureBuffer
 public:
     void prepare(double sampleRateIn, int numChannels, double bufferSeconds = 60.0);
     void push(const juce::AudioBuffer<float>& block) noexcept;
-    juce::AudioBuffer<float> snapshot() const;
+
+    /** The most recent `maxSamples` of audio, or everything held when
+        maxSamples <= 0. Bounding this matters: the full buffer is a minute of
+        audio, and every extra second is another second of Demucs separation
+        on the backend. */
+    juce::AudioBuffer<float> snapshot(int maxSamples = 0) const;
+
     double getSampleRate() const noexcept { return sampleRate; }
+    int getCapacitySamples() const noexcept { return capacitySamples; }
 
 private:
     juce::AudioBuffer<float> storage;

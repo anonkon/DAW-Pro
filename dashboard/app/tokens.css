@@ -1,0 +1,105 @@
+/* DAWpro design tokens — the single source of truth for both surfaces.
+ *
+ * The dashboard imports this from globals.css. The plugin's WebView bundle
+ * copies this exact file at build time (see plugin/CMakeLists.txt), so the
+ * plugin and the web app cannot drift apart.
+ *
+ * Dark-only by design: this is a companion to a DAW, and it lives next to
+ * Ableton's own dark chrome. There is no light theme to fall back to.
+ *
+ * Colours are not eyeballed. The two data-series hues were validated with the
+ * dataviz palette validator (dark mode, surface #0a0a0c, all-pairs):
+ * CVD deutan dE 28.1, normal-vision dE 37.0, both marks >= 3:1 on surface.
+ * Every text/UI token below was checked against WCAG; the lowest is
+ * --text-muted at 4.12:1, and everything carrying real information is >= 4.5:1.
+ *
+ * Before changing any --viz-* or --accent value, re-run both checks. The
+ * neon accent deliberately sits outside the data-mark lightness band: it is
+ * brand and interaction colour, never a series, so it answers to text
+ * contrast instead.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* --- Surfaces --------------------------------------------------------- */
+  --surface-base: #0a0a0c; /* page */
+  --surface-panel: #101014; /* cards, panels */
+  --surface-raised: #17171d; /* inputs, nested wells */
+  --surface-hover: #1e1e26;
+
+  --border-subtle: #1a1a21;
+  --border-default: #23232b;
+  --border-strong: #32323d;
+
+  /* --- Ink -------------------------------------------------------------- */
+  --text-primary: #ececf1;
+  --text-secondary: #a4a4b0;
+  --text-muted: #71717f;
+  --text-on-accent: #0a0a0c;
+
+  /* --- Brand / interaction ---------------------------------------------- */
+  /* Not a data colour. Buttons, focus rings, brand marks, live indicators. */
+  --accent: #4ade80;
+  --accent-hover: #6ee79b;
+  --accent-dim: #1a3d28;
+  --accent-glow: rgb(74 222 128 / 0.28);
+
+  /* --- Data series ------------------------------------------------------ */
+  /* Fixed identities, never reassigned. Project is the subject of the app;
+     reference is what it is being measured against. */
+  --viz-project: #8b5cf6;
+  --viz-project-soft: rgb(139 92 246 / 0.18);
+  --viz-reference: #16a34a;
+  --viz-reference-soft: rgb(22 163 74 / 0.18);
+
+  --viz-grid: #1c1c23; /* recessive gridlines */
+  --viz-axis: #2a2a34;
+
+  /* --- Status ----------------------------------------------------------- */
+  /* Reserved meanings. Never reused as a series colour, and never the sole
+     carrier of meaning — always paired with an icon or a label. */
+  --status-critical: #f87171;
+  --status-critical-bg: rgb(248 113 113 / 0.12);
+  --status-warning: #fbbf24;
+  --status-warning-bg: rgb(251 191 36 / 0.12);
+  --status-info: #60a5fa;
+  --status-info-bg: rgb(96 165 250 / 0.12);
+
+  /* --- Type ------------------------------------------------------------- */
+  /* System stack only. The plugin WebView has no network access, so a webfont
+     would silently fall back there and the two surfaces would diverge. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --text-display: 1.75rem; /* panel headings */
+  --text-body: 0.875rem;
+  --text-small: 0.8125rem;
+  --text-label: 0.6875rem; /* the uppercase tracked labels */
+
+  --tracking-label: 0.12em;
+
+  /* --- Geometry --------------------------------------------------------- */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  --panel-padding: 1.25rem;
+  --panel-gap: 1rem;
+}
+
+/* The small uppercase caption used on every panel header in the design. */
+.label-caps {
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Accent glow, used sparingly: primary CTA and the live indicator only. */
+.glow-accent {
+  box-shadow: 0 0 0 1px var(--accent-dim), 0 0 24px -6px var(--accent-glow);
+}

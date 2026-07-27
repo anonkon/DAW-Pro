@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+Severity = Literal["info", "warning", "critical"]
+
 
 class AnalyzeRequest(BaseModel):
     session_id: str
@@ -20,6 +22,12 @@ class AnalyzeAccepted(BaseModel):
     status: Literal["queued"]
 
 
+# --- Measured values -------------------------------------------------------
+# Everything below is computed in pipeline/, never produced by the LLM. The
+# model is told about these numbers so it can reason over them; it is not asked
+# to emit them, because it can only guess at a measurement.
+
+
 class FrequencyBand(BaseModel):
     label: str
     hz_low: float
@@ -28,24 +36,102 @@ class FrequencyBand(BaseModel):
     reference_db: float
 
 
-class TimingMarker(BaseModel):
-    time_sec: float
-    label: str
-    severity: Literal["info", "warning", "critical"]
+class SpectrumPoint(BaseModel):
+    hz: float
+    db: float
+
+
+class SpectrumComparison(BaseModel):
+    """Log-spaced spectra for the overlaid curve view."""
+
+    project: list[SpectrumPoint] = []
+    reference: list[SpectrumPoint] = []
+
+
+class TimingEvent(BaseModel):
+    """One reference onset paired with the nearest project onset."""
+
+    reference_sec: float
+    project_sec: float | None = None
+    delta_ms: float | None = None  # positive = project is late
+    severity: Severity = "info"
+
+
+class TimingAnalysis(BaseModel):
+    rhythmic_cohesion: float | None = None  # 0-100, phase concentration
+    timing_offset_ms: float | None = None  # systematic; positive = behind
+    timing_scatter_ms: float | None = None  # looseness around that offset
+    grid_source: Literal["host_bpm", "estimated"] | None = None
+    events: list[TimingEvent] = []
+
+
+class PhaseAnalysis(BaseModel):
+    correlation: float | None = None  # -1..+1, None when the source is mono
+    verdict: Literal["mono", "in_phase", "wide", "problematic"] | None = None
+
+
+class Loudness(BaseModel):
+    peak_db: float | None = None
+    rms_db: float | None = None
+
+
+class LoudnessComparison(BaseModel):
+    project: Loudness = Loudness()
+    reference: Loudness = Loudness()
+
+
+class Measurements(BaseModel):
+    eq_comparison: list[FrequencyBand] = []
+    spectrum: SpectrumComparison = SpectrumComparison()
+    timing: TimingAnalysis = TimingAnalysis()
+    phase: PhaseAnalysis = PhaseAnalysis()
+    loudness: LoudnessComparison = LoudnessComparison()
+    tempo_bpm: float | None = None
+
+
+# --- Narrative -------------------------------------------------------------
+# The LLM's entire structured output surface. Prose and judgement only.
 
 
 class MixIssue(BaseModel):
     title: str
     description: str
-    severity: Literal["info", "warning", "critical"]
+    severity: Severity
     related_band: str | None = None
+    hz_low: float | None = None  # anchors the callout onto the spectrum curve
+    hz_high: float | None = None
+
+
+class MentorNarrative(BaseModel):
+    summary: str
+    issues: list[MixIssue] = []
+    suggested_exploration: str | None = None
+    suggested_path: str | None = None
+
+
+# --- Combined result -------------------------------------------------------
+
+
+class TimingMarker(BaseModel):
+    time_sec: float
+    label: str
+    severity: Severity
 
 
 class AnalysisResult(BaseModel):
+    # narrative, from the model
     summary: str
-    eq_comparison: list[FrequencyBand]
-    timing_markers: list[TimingMarker]
-    issues: list[MixIssue]
+    issues: list[MixIssue] = []
+    suggested_exploration: str | None = None
+    suggested_path: str | None = None
+
+    # measured, from the pipeline
+    measurements: Measurements = Measurements()
+
+    # eq_comparison stays at the top level: it predates measurements and the
+    # dashboard still reads it there.
+    eq_comparison: list[FrequencyBand] = []
+    timing_markers: list[TimingMarker] = []
     mix_score: float | None = None
 
 
@@ -69,3 +155,21 @@ class Persona(BaseModel):
     skill_level: Literal["beginner", "intermediate", "advanced"] = "beginner"
     preferred_genres: list[str] = []
     feedback_tone: Literal["guided", "direct", "technical"] = "guided"
+
+
+# --- Plugin-facing listings -------------------------------------------------
+# The plugin has no Supabase client, so it reads these through the backend.
+
+
+class SessionSummary(BaseModel):
+    id: str
+    project_name: str
+    persona_id: str
+    created_at: str | None = None
+
+
+class AnalysisEntry(BaseModel):
+    job_id: str | None = None
+    created_at: str | None = None
+    summary: str | None = None
+    rhythmic_cohesion: float | None = None

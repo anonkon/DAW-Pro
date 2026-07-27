@@ -34,10 +34,12 @@ async def run_pipeline(job_id: str, request: AnalyzeRequest, audio_bytes: bytes,
         stems = await asyncio.to_thread(separate_stems, local_path, stem_dir)
 
         _set(job_id, status="extracting_features", progress=0.55)
-        project_features = await asyncio.to_thread(extract_features, str(local_path))
+        # The DAW's own tempo, when the plugin sent it. Timing is scored against
+        # this rather than a grid estimated from the audio - see features._timing.
+        project_features = await asyncio.to_thread(extract_features, str(local_path), request.bpm)
         stem_features = {}
         for name, path in stems.items():
-            stem_features[name] = await asyncio.to_thread(extract_features, str(path))
+            stem_features[name] = await asyncio.to_thread(extract_features, str(path), request.bpm)
         project_features["stems"] = stem_features
 
         if request.source == "reference_upload":
@@ -53,6 +55,7 @@ async def run_pipeline(job_id: str, request: AnalyzeRequest, audio_bytes: bytes,
             persona,
             request.sonic_intention,
             request.genre,
+            request.bpm,
         )
 
         _set(job_id, status="done", progress=1.0, result=result)
