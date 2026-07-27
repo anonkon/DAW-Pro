@@ -8,6 +8,8 @@ demucs
 librosa
 soundfile
 numpy
+scipy
+pyloudnorm
 
 langchain
 langchain-core

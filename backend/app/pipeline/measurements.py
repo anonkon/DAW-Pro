@@ -10,10 +10,13 @@ from ..schemas import (
     PhaseAnalysis,
     SpectrumComparison,
     SpectrumPoint,
+    StemSummary,
+    StereoWidthBand,
     TimingAnalysis,
     TimingEvent,
+    TransientEvent,
 )
-from .features import FREQ_BANDS
+from .features import FREQ_BANDS, MAX_TRANSIENT_EVENTS
 
 # How far apart two tempos can be before bar-relative onset pairing stops
 # meaning anything.
@@ -43,7 +46,12 @@ def build_measurements(project: dict, reference: dict, host_bpm: float | None) -
             project=_loudness(project),
             reference=_loudness(reference),
         ),
+        stereo_width=_stereo_width(project),
+        transients=_transients(project),
+        key=project.get("key"),
+        key_confidence=project.get("key_confidence"),
         tempo_bpm=host_bpm or project.get("tempo_bpm"),
+        stems=_stems(project),
     )
 
 
@@ -67,7 +75,41 @@ def _spectrum(features: dict) -> list[SpectrumPoint]:
 
 
 def _loudness(features: dict) -> Loudness:
-    return Loudness(peak_db=features.get("peak_db"), rms_db=features.get("rms_mean_db"))
+    return Loudness(
+        peak_db=features.get("peak_db"),
+        rms_db=features.get("rms_mean_db"),
+        crest_factor_db=features.get("crest_factor_db"),
+        integrated_lufs=features.get("integrated_lufs"),
+        short_term_lufs=features.get("short_term_lufs"),
+        true_peak_dbtp=features.get("true_peak_dbtp"),
+        loudness_range_lu=features.get("loudness_range_lu"),
+    )
+
+
+def _stereo_width(project: dict) -> list[StereoWidthBand]:
+    width_db = project.get("stereo_width_db")
+    if not width_db:
+        return []
+    return [
+        StereoWidthBand(label=label, hz_low=lo, hz_high=hi, width_db=width_db[label])
+        for label, lo, hi in FREQ_BANDS
+        if label in width_db
+    ]
+
+
+def _transients(project: dict) -> list[TransientEvent]:
+    events = project.get("attack_events", [])[:MAX_TRANSIENT_EVENTS]
+    return [TransientEvent(onset_sec=e["onset_sec"], attack_ms=e["attack_ms"]) for e in events]
+
+
+def _stems(project: dict) -> dict[str, StemSummary]:
+    """Per-instrument breakdown from the Demucs stems already extracted in
+    jobs.py - the same feature dict shape as the full mix, just narrower."""
+    stems = project.get("stems", {})
+    return {
+        name: StemSummary(band_energy_db=features.get("band_energy_db", {}), loudness=_loudness(features))
+        for name, features in stems.items()
+    }
 
 
 def _phase(features: dict) -> PhaseAnalysis:

@@ -26,6 +26,33 @@ HOP_LENGTH = 2048
 # otherwise every hat on an 8th reads as maximally off-time.
 GRID_SUBDIVISION = 4
 
+# BS.1770 gives a whole-clip integrated loudness, not a windowed one.
+# short-term/LRA is approximated by re-running the same meter over
+# overlapping slices - see _loudness_lufs for the caveat that introduces.
+LUFS_BLOCK_SEC = 3.0
+LUFS_HOP_SEC = 1.0
+LRA_LOW_PCT = 10.0
+LRA_HIGH_PCT = 95.0
+ABSOLUTE_GATE_LUFS = -70.0  # per BS.1770; quieter blocks are silence, not programme material
+
+TRUE_PEAK_OVERSAMPLE = 4  # ITU-R BS.1770 true-peak guidance
+
+# Long enough to catch a slow pad's attack, short enough that the next onset
+# rarely intrudes into the window.
+ATTACK_WINDOW_SEC = 0.05
+ATTACK_LOW_PCT = 0.1
+ATTACK_HIGH_PCT = 0.9
+# Mirrors MAX_TIMING_EVENTS in measurements.py - keeps the payload bounded on
+# dense material instead of emitting one entry per onset in a whole track.
+MAX_TRANSIENT_EVENTS = 32
+
+# Krumhansl-Schmuckler key profiles (Krumhansl & Kessler 1982), correlated
+# against a track's mean chroma vector to pick the best-fitting key.
+_MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+_MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+_PITCH_CLASSES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+KEY_CONFIDENCE_FLOOR = 0.3  # below this the best-fit correlation is too weak to call a key
+
 
 def extract_features(audio_path: str, host_bpm: float | None = None) -> dict:
     import librosa
@@ -36,6 +63,8 @@ def extract_features(audio_path: str, host_bpm: float | None = None) -> dict:
     y = _as_mono(y_raw)
 
     rms = librosa.feature.rms(y=y)[0]
+    rms_mean_db = float(librosa.amplitude_to_db(np.array([rms.mean()]))[0])
+    peak_db = _peak_db(y)
 
     # Raw STFT magnitude scales with n_fft and the window, so converting it
     # straight to dB gives numbers with no reference - a full-scale sine reads
@@ -45,19 +74,7 @@ def extract_features(audio_path: str, host_bpm: float | None = None) -> dict:
     window_gain = float(librosa.filters.get_window("hann", N_FFT, fftbins=True).sum()) / 2.0
     stft_mag = np.abs(librosa.stft(y, n_fft=N_FFT, hop_length=HOP_LENGTH)) / window_gain
     freqs = librosa.fft_frequencies(sr=sr, n_fft=N_FFT)
-
-    band_energy_db: dict[str, float] = {}
-    for label, lo, hi in FREQ_BANDS:
-        mask = (freqs >= lo) & (freqs < hi)
-        if not mask.any():
-            band_energy_db[label] = -120.0
-            continue
-        # Total power in the band, not mean magnitude across its bins. Averaging
-        # magnitude makes a band read quieter simply for being wider, since most
-        # bins in a wide band are near-empty - the 6-20kHz band spans ~2600 bins
-        # and would score low on width alone.
-        power = np.sum(stft_mag[mask] ** 2, axis=0).mean()
-        band_energy_db[label] = float(10.0 * np.log10(max(power, 1e-12)))
+    band_energy_db = _band_energy_db(stft_mag, freqs)
 
     # backtrack=True walks each detection back to the preceding energy minimum,
     # i.e. where the attack actually begins. Without it every onset lands ~20ms
@@ -67,8 +84,9 @@ def extract_features(audio_path: str, host_bpm: float | None = None) -> dict:
 
     return {
         "duration_sec": float(librosa.get_duration(y=y, sr=sr)),
-        "rms_mean_db": float(librosa.amplitude_to_db(np.array([rms.mean()]))[0]),
-        "peak_db": _peak_db(y),
+        "rms_mean_db": rms_mean_db,
+        "peak_db": peak_db,
+        "crest_factor_db": round(peak_db - rms_mean_db, 2),
         "band_energy_db": band_energy_db,
         "spectrum_curve": _spectrum_curve(stft_mag, freqs),
         "onsets_sec": [float(t) for t in onsets_sec],
@@ -77,6 +95,11 @@ def extract_features(audio_path: str, host_bpm: float | None = None) -> dict:
         **_timing(onsets_sec, beat_times, host_bpm),
         "phase_correlation": _phase_correlation(y_raw),
         "is_stereo": bool(np.ndim(y_raw) == 2 and y_raw.shape[0] >= 2),
+        **_loudness_lufs(y_raw, sr),
+        "true_peak_dbtp": _true_peak_dbtp(y),
+        "stereo_width_db": _stereo_width_db(y_raw, band_energy_db, freqs, window_gain),
+        "attack_events": _attack_times_ms(y, sr, onsets_sec),
+        **_estimate_key(y, sr),
     }
 
 
@@ -90,6 +113,25 @@ def _peak_db(y: np.ndarray) -> float:
     peak = float(np.max(np.abs(y))) if y.size else 0.0
     # Silence would be -inf dB; floor it so the value stays JSON-serialisable.
     return float(librosa.amplitude_to_db(np.array([max(peak, 1e-10)]))[0])
+
+
+def _band_energy_db(stft_mag: np.ndarray, freqs: np.ndarray) -> dict[str, float]:
+    """Per-band power in dBFS, using the five semantic FREQ_BANDS.
+
+    Total power in the band, not mean magnitude across its bins. Averaging
+    magnitude makes a band read quieter simply for being wider, since most
+    bins in a wide band are near-empty - the 6-20kHz band spans ~2600 bins
+    and would score low on width alone.
+    """
+    band_energy_db: dict[str, float] = {}
+    for label, lo, hi in FREQ_BANDS:
+        mask = (freqs >= lo) & (freqs < hi)
+        if not mask.any():
+            band_energy_db[label] = -120.0
+            continue
+        power = np.sum(stft_mag[mask] ** 2, axis=0).mean()
+        band_energy_db[label] = float(10.0 * np.log10(max(power, 1e-12)))
+    return band_energy_db
 
 
 def _spectrum_curve(stft_mag: np.ndarray, freqs: np.ndarray) -> list[dict]:
@@ -219,3 +261,171 @@ def _phase_correlation(y_raw: np.ndarray) -> float | None:
 
     correlation = float(np.corrcoef(left, right)[0, 1])
     return None if np.isnan(correlation) else round(correlation, 3)
+
+
+def _loudness_lufs(y_raw: np.ndarray, sr: float) -> dict:
+    """Integrated LUFS, a representative short-term LUFS, and loudness range.
+
+    pyloudnorm only exposes a whole-clip integrated_loudness(), not a
+    windowed short-term API, so short-term values are approximated by
+    re-running that same meter over overlapping 3s slices. That reapplies the
+    absolute gate per-slice rather than the full relative-gating pass EBU R128
+    LRA uses globally - a simplification, good enough to flag "loudness is
+    inconsistent across the track" without claiming broadcast-spec precision.
+    """
+    import pyloudnorm as pyln
+
+    audio = y_raw.T if np.ndim(y_raw) == 2 else y_raw  # pyloudnorm wants (samples,) or (samples, channels)
+    meter = pyln.Meter(sr)
+
+    try:
+        integrated = meter.integrated_loudness(audio)
+    except Exception:  # noqa: BLE001 - too short/quiet for BS.1770 gating to produce a value
+        integrated = float("-inf")
+    integrated_lufs = float(integrated) if np.isfinite(integrated) else None
+
+    n = audio.shape[0]
+    block = int(LUFS_BLOCK_SEC * sr)
+    hop = int(LUFS_HOP_SEC * sr)
+    short_term: list[float] = []
+    if block > 0 and n >= block:
+        for start in range(0, n - block + 1, hop):
+            try:
+                value = meter.integrated_loudness(audio[start : start + block])
+            except Exception:  # noqa: BLE001 - a silent slice fails gating; skip it
+                continue
+            if np.isfinite(value) and value > ABSOLUTE_GATE_LUFS:
+                short_term.append(float(value))
+
+    lra = None
+    if len(short_term) >= 2:
+        lra = round(float(np.percentile(short_term, LRA_HIGH_PCT) - np.percentile(short_term, LRA_LOW_PCT)), 2)
+
+    return {
+        "integrated_lufs": round(integrated_lufs, 2) if integrated_lufs is not None else None,
+        "short_term_lufs": round(float(np.median(short_term)), 2) if short_term else None,
+        "loudness_range_lu": lra,
+    }
+
+
+def _true_peak_dbtp(y: np.ndarray) -> float | None:
+    """Oversampled peak level in dBTP (true peak).
+
+    Sample-peak metering misses inter-sample peaks that a real D/A
+    reconstruction filter would produce - a signal sitting right at 0dBFS on
+    consecutive samples can reconstruct several tenths of a dB higher.
+    Oversampling by 4x approximates that reconstructed peak, per ITU-R
+    BS.1770's true-peak guidance.
+    """
+    import librosa
+    import scipy.signal as signal
+
+    if y.size == 0:
+        return None
+    upsampled = signal.resample_poly(y, TRUE_PEAK_OVERSAMPLE, 1)
+    peak = float(np.max(np.abs(upsampled))) if upsampled.size else 0.0
+    return round(float(librosa.amplitude_to_db(np.array([max(peak, 1e-10)]))[0]), 2)
+
+
+def _stereo_width_db(
+    y_raw: np.ndarray, mid_band_energy_db: dict[str, float], freqs: np.ndarray, window_gain: float
+) -> dict[str, float] | None:
+    """Per-band side-energy relative to mid-energy, in dB.
+
+    Positive means that band is wider than centred; strongly positive in the
+    low bands is the classic "wide bass" problem, since summing to mono
+    partially cancels it. Reuses the mid-signal spectrum already computed for
+    _as_mono(y_raw) - mid is exactly (L+R)/2, the same average _as_mono takes
+    - so only the side signal (L-R)/2 needs a fresh STFT here.
+
+    None for mono sources - there's no stereo image to measure.
+    """
+    import librosa
+
+    if np.ndim(y_raw) != 2 or y_raw.shape[0] < 2:
+        return None
+
+    left, right = y_raw[0], y_raw[1]
+    side = (left - right) / 2.0
+    side_mag = np.abs(librosa.stft(side, n_fft=N_FFT, hop_length=HOP_LENGTH)) / window_gain
+    side_band_energy_db = _band_energy_db(side_mag, freqs)
+
+    return {
+        label: round(side_band_energy_db[label] - mid_band_energy_db[label], 2) for label in mid_band_energy_db
+    }
+
+
+def _attack_times_ms(y: np.ndarray, sr: float, onsets_sec: np.ndarray) -> list[dict]:
+    """10%-90% rise time of the amplitude envelope after each onset, in ms.
+
+    Envelope via the Hilbert transform's analytic-signal magnitude - cheap
+    and standard for attack-time estimation, and needs no separate filter
+    design the way an RMS envelope with a chosen window would. Onsets whose
+    window runs off the end of the file, or whose envelope never clearly
+    rises from 10% to 90% of its local peak (e.g. a sustained swell with no
+    real transient), are skipped rather than given a fabricated value.
+    """
+    import scipy.signal as signal
+
+    if len(onsets_sec) == 0:
+        return []
+
+    window = int(ATTACK_WINDOW_SEC * sr)
+    events: list[dict] = []
+    for onset in onsets_sec[:MAX_TRANSIENT_EVENTS]:
+        start = int(onset * sr)
+        end = start + window
+        if window <= 0 or end > y.size:
+            continue
+        envelope = np.abs(signal.hilbert(y[start:end]))
+        peak = float(envelope.max())
+        if peak <= 1e-8:
+            continue
+
+        low_thresh = peak * ATTACK_LOW_PCT
+        high_thresh = peak * ATTACK_HIGH_PCT
+        if not np.any(envelope >= high_thresh) or not np.any(envelope >= low_thresh):
+            continue
+        above_low = int(np.argmax(envelope >= low_thresh))
+        above_high = int(np.argmax(envelope >= high_thresh))
+        if above_high <= above_low:
+            continue
+
+        events.append(
+            {
+                "onset_sec": float(onset),
+                "attack_ms": round((above_high - above_low) / sr * 1000.0, 1),
+            }
+        )
+    return events
+
+
+def _estimate_key(y: np.ndarray, sr: float) -> dict:
+    """Best-fit key via Krumhansl-Schmuckler profile correlation on chroma.
+
+    Correlates the track's mean chroma vector against all 24 major/minor key
+    profiles and reports the best match plus its correlation as a confidence
+    score - a poor best-fit score (ambiguous or atonal material, or a drum
+    stem with no clear pitch content) is reported as low confidence rather
+    than a false-confident guess.
+    """
+    import librosa
+
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+    mean_chroma = chroma.mean(axis=1)
+    if not np.any(mean_chroma):
+        return {"key": None, "key_confidence": None}
+
+    best_label: str | None = None
+    best_score = -2.0
+    for tonic in range(12):
+        for mode, profile in (("major", _MAJOR_PROFILE), ("minor", _MINOR_PROFILE)):
+            rotated = np.roll(profile, tonic)
+            score = float(np.corrcoef(mean_chroma, rotated)[0, 1])
+            if np.isfinite(score) and score > best_score:
+                best_score = score
+                best_label = f"{_PITCH_CLASSES[tonic]} {mode}"
+
+    if best_label is None or best_score < KEY_CONFIDENCE_FLOOR:
+        return {"key": None, "key_confidence": round(best_score, 3) if best_label else None}
+    return {"key": best_label, "key_confidence": round(best_score, 3)}

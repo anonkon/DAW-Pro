@@ -56,6 +56,7 @@ async def run_pipeline(job_id: str, request: AnalyzeRequest, audio_bytes: bytes,
             request.sonic_intention,
             request.genre,
             request.bpm,
+            request.session_id,
         )
 
         _set(job_id, status="done", progress=1.0, result=result)

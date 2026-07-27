@@ -73,11 +73,35 @@ class PhaseAnalysis(BaseModel):
 class Loudness(BaseModel):
     peak_db: float | None = None
     rms_db: float | None = None
+    crest_factor_db: float | None = None  # peak_db - rms_db; low means little dynamic range left
+    integrated_lufs: float | None = None
+    short_term_lufs: float | None = None  # representative short-term value, not a time series
+    true_peak_dbtp: float | None = None
+    loudness_range_lu: float | None = None  # LRA; see pipeline/features.py for the simplified derivation
 
 
 class LoudnessComparison(BaseModel):
     project: Loudness = Loudness()
     reference: Loudness = Loudness()
+
+
+class StereoWidthBand(BaseModel):
+    label: str
+    hz_low: float
+    hz_high: float
+    width_db: float  # side-energy relative to mid-energy; positive = wider than centred
+
+
+class TransientEvent(BaseModel):
+    onset_sec: float
+    attack_ms: float  # 10%-90% envelope rise time
+
+
+class StemSummary(BaseModel):
+    """Per-instrument breakdown from Demucs stem separation."""
+
+    band_energy_db: dict[str, float] = {}
+    loudness: Loudness = Loudness()
 
 
 class Measurements(BaseModel):
@@ -86,7 +110,12 @@ class Measurements(BaseModel):
     timing: TimingAnalysis = TimingAnalysis()
     phase: PhaseAnalysis = PhaseAnalysis()
     loudness: LoudnessComparison = LoudnessComparison()
+    stereo_width: list[StereoWidthBand] = []
+    transients: list[TransientEvent] = []
+    key: str | None = None
+    key_confidence: float | None = None
     tempo_bpm: float | None = None
+    stems: dict[str, StemSummary] = {}
 
 
 # --- Narrative -------------------------------------------------------------

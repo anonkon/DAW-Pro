@@ -70,11 +70,39 @@ export interface PhaseAnalysis {
 export interface Loudness {
   peak_db: number | null;
   rms_db: number | null;
+  /** peak_db - rms_db; low means little dynamic range left. */
+  crest_factor_db: number | null;
+  integrated_lufs: number | null;
+  /** Representative short-term value, not a time series. */
+  short_term_lufs: number | null;
+  true_peak_dbtp: number | null;
+  /** LRA; see backend pipeline/features.py for the simplified derivation. */
+  loudness_range_lu: number | null;
 }
 
 export interface LoudnessComparison {
   project: Loudness;
   reference: Loudness;
+}
+
+export interface StereoWidthBand {
+  label: string;
+  hz_low: number;
+  hz_high: number;
+  /** Side-energy relative to mid-energy; positive = wider than centred. */
+  width_db: number;
+}
+
+export interface TransientEvent {
+  onset_sec: number;
+  /** 10-90% envelope rise time. */
+  attack_ms: number;
+}
+
+/** Per-instrument breakdown from Demucs stem separation. */
+export interface StemSummary {
+  band_energy_db: Record<string, number>;
+  loudness: Loudness;
 }
 
 export interface Measurements {
@@ -83,7 +111,12 @@ export interface Measurements {
   timing: TimingAnalysis;
   phase: PhaseAnalysis;
   loudness: LoudnessComparison;
+  stereo_width: StereoWidthBand[];
+  transients: TransientEvent[];
+  key: string | null;
+  key_confidence: number | null;
   tempo_bpm: number | null;
+  stems: Record<string, StemSummary>;
 }
 
 export interface AnalysisResult {

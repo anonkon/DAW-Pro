@@ -5,8 +5,10 @@ import logging
 import time
 
 from ..config import settings
+from ..knowledge.retrieval import retrieve_knowledge
 from ..pipeline.measurements import build_measurements
 from ..schemas import AnalysisResult, Measurements, MentorNarrative, Persona, TimingMarker
+from ..session_history import build_session_history
 
 logger = logging.getLogger("dawpro.ai")
 
@@ -20,6 +22,14 @@ Preferred genres: {preferred_genres}
 
 You are given measurements that have already been computed from the audio. Your
 job is to interpret them, not to reproduce or extend them.
+
+Measurements available to you: EQ band energy and spectrum curve, timing
+(rhythmic cohesion, offset, scatter), phase correlation, loudness (peak, RMS,
+crest factor, integrated/short-term LUFS, true peak, loudness range), stereo
+width per band, transient attack times, detected key, and — where Demucs
+stem separation succeeded — a per-stem breakdown (band energy and loudness
+for drums/bass/vocals/other individually). Use the per-stem data to name
+which instrument a problem lives in, not just which frequency band.
 
 Rules:
 - Music is subjective. Never give specific prescriptive instructions
@@ -36,6 +46,18 @@ Rules:
 - If reference_measurements is empty, no reference track has been analyzed for
   this session yet — give feedback on the project audio alone and say so in
   the summary, rather than inventing a comparison.
+- session_history lists issues already raised earlier in this project. Do not
+  restate them verbatim. Where an entry has both flagged_* and current_*
+  values for the same band, compare them and say what changed, citing the
+  current number — never call something fixed or resolved without a current
+  measurement to support it. If session_history is empty, this is the first
+  analysis in this project. Prioritize new findings from the measurements
+  over repeating history.
+- knowledge_context is general genre/technique background, not a fact about
+  this specific audio — use it to interpret and phrase what the measurements
+  already show, never as a source of numbers about this track. Only
+  `measurements` describes this audio; only `session_history` describes this
+  project's own past feedback.
 
 For each issue you raise, set hz_low/hz_high when it is frequency-specific, so
 the dashboard can anchor the callout to the right part of the spectrum.
@@ -53,6 +75,7 @@ def analyze(
     sonic_intention: str,
     genre: str | None,
     host_bpm: float | None = None,
+    session_id: str | None = None,
 ) -> AnalysisResult:
     measurements = build_measurements(project_features, reference_features, host_bpm)
 
@@ -70,7 +93,7 @@ def analyze(
         )
 
     narrative = _gemini_narrative(
-        measurements, reference_features, persona, sonic_intention, genre
+        measurements, reference_features, persona, sonic_intention, genre, session_id
     )
     return _compose(narrative, measurements, project_features)
 
@@ -99,6 +122,7 @@ def _gemini_narrative(
     persona: Persona,
     sonic_intention: str,
     genre: str | None,
+    session_id: str | None,
 ) -> MentorNarrative:
     from langchain_core.messages import HumanMessage, SystemMessage
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -117,11 +141,15 @@ def _gemini_narrative(
         feedback_tone=persona.feedback_tone,
         preferred_genres=", ".join(persona.preferred_genres) or "unspecified",
     )
+    session_history = build_session_history(session_id, measurements.eq_comparison) if session_id else []
+    knowledge = retrieve_knowledge(measurements, genre, persona.skill_level, persona.preferred_genres)
     human_payload = {
         "sonic_intention": sonic_intention,
         "genre": genre,
         "measurements": measurements.model_dump(),
         "reference_measurements": bool(reference_features),
+        "session_history": [issue.model_dump() for issue in session_history],
+        "knowledge_context": [chunk.model_dump(exclude={"source"}) for chunk in knowledge],
     }
     messages = [
         SystemMessage(content=system_prompt),
