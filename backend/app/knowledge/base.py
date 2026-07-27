@@ -39,12 +39,18 @@ GENRE_CHUNKS: list[KnowledgeChunk] = [
             "denser than most other genres. Sub-bass energy (808s) is "
             "commonly concentrated around 20-50Hz, lower than older rap "
             "records which centered closer to 70Hz. The vocal needs to cut "
-            "through that dense low end rather than compete with it."
+            "through that dense low end rather than compete with it. Many "
+            "hip-hop/EDM productions also push the bass EQ 'pocket' - not "
+            "the sub fundamental itself, but where it's boosted for "
+            "translation - up toward 70-100Hz specifically so it still reads "
+            "on small speakers that can't reproduce true sub-bass."
         ),
         source=(
             "https://luvlang.studio/blog/how-loud-should-my-master-be ; "
             "https://beatstorapon.com/blog/rap-mastering-settings-2025-professional-targets-presets-and-platform-delivery-for-rap-trap-rb/ ; "
-            "https://gearspace.com/board/mastering-forum/1248356-low-frequency-extension-modern-rap-records.html"
+            "https://gearspace.com/board/mastering-forum/1248356-low-frequency-extension-modern-rap-records.html ; "
+            "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
+            "excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf"
         ),
     ),
     KnowledgeChunk(
@@ -94,6 +100,24 @@ GENRE_CHUNKS: list[KnowledgeChunk] = [
             "excerpted in books/The_Art_of_Mastering_in_Music_-_Final.pdf"
         ),
     ),
+    KnowledgeChunk(
+        id="genre_acoustic",
+        type="genre_target",
+        title="Acoustic / organic music targets",
+        body=(
+            "Acoustic and organic-instrument music generally benefits from "
+            "more dynamic range rather than less, commonly mastered around "
+            "-12 to -14 integrated LUFS - quieter and less compressed than "
+            "electronic or pop material, letting the natural dynamics of "
+            "real performances stay intact rather than being flattened for "
+            "loudness."
+        ),
+        source=(
+            "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), Master "
+            "Mix chapter, excerpted in "
+            "books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf"
+        ),
+    ),
 ]
 
 # --- Technique explanations, each keyed to a measurement trigger in
@@ -116,14 +140,24 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "gentler stages sounds more natural than one heavy one, and "
             "leaning on limiting for loudness rather than earlier mix "
             "decisions tends to flatten sharp transient energy into "
-            "something blunter and more fatiguing."
+            "something blunter and more fatiguing. Waveforms visibly "
+            "flat-lined at the top ('hypercompression') are the extreme end "
+            "of this - they eat into mastering headroom and can make a track "
+            "sound weaker, not punchier. Mix-buss 'glue' compression, by "
+            "contrast, is meant to be barely audible: a classic starting "
+            "point is a fast attack, auto release, 4:1 ratio, aiming for "
+            "only 1-3dB of gain reduction."
         ),
         source=(
             "https://www.izotope.com/en/learn/what-is-crest-factor ; "
             "https://polarity.me/posts/polarity-music/2025-04-09-measure-compression-with-the-crest-factor/ ; "
             "https://mixanalytic.com/guides/dynamic-range-analysis ; "
             "mastering-chapter excerpts, The Art of Mastering in Music, "
-            "pp.61-63, excerpted in books/The_Art_of_Mastering_in_Music_-_Final.pdf"
+            "pp.61-63, excerpted in books/The_Art_of_Mastering_in_Music_-_Final.pdf ; "
+            "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), Master "
+            "Mix chapter, and Cristofer Odqvist, Making Sound, 'Ways to Glue "
+            "a Mix,' excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf "
+            "and books/document (1).pdf"
         ),
     ),
     KnowledgeChunk(
@@ -134,21 +168,34 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "Low-mid mud concentrates roughly 200-500Hz - the range that "
             "carries the warmth and body of most instruments at once. When "
             "several parts overlap there, the energy sums and the mix reads "
-            "as thick and undefined rather than punchy. It's usually cured "
-            "by cutting that range on the instruments that don't need it, "
-            "rather than boosting the ones that do. A useful diagnostic is "
-            "applying a broad high-frequency boost across the whole mix "
-            "midway through mixing - it often reveals a problem a dull-"
-            "sounding mix was masking more clearly than the boost itself "
-            "fixes anything. Reflexively high-passing every non-bass "
-            "instrument 'because lows should only come from bass' is a "
-            "common but usually unnecessary habit of its own."
+            "as thick and undefined rather than punchy - two instruments "
+            "peaking at the same frequency at the same time is a direct "
+            "fight for attention that the ear can't resolve. Named trouble "
+            "spots within and around this range: ~200Hz reads as 'mud,' "
+            "300-500Hz as 'boxy' (the classic cheap-mic tom/kick sound), and "
+            "800Hz as thin/cheap-sounding. It's usually cured by cutting the "
+            "offending range on the instruments that don't need it (or, for "
+            "a clashing kick and bass specifically, sidechaining the bass to "
+            "duck under the kick instead of EQing), rather than boosting the "
+            "ones that do. A useful diagnostic is applying a broad "
+            "high-frequency boost across the whole mix midway through "
+            "mixing - it often reveals a problem a dull-sounding mix was "
+            "masking more clearly than the boost itself fixes anything. "
+            "Reflexively high-passing every non-bass instrument 'because "
+            "lows should only come from bass' is a common but usually "
+            "unnecessary habit of its own."
         ),
         source=(
             "https://babyaud.io/blog/fix-a-muddy-mix ; "
             "https://www.izotope.com/en/learn/8-common-compression-mistakes-music-producers-make ; "
             "Wessel Oltheten, Mixing with Impact, pp.42, 44-45, excerpted in "
-            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf"
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf ; "
+            "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
+            "'Six Trouble Frequency Areas' and Mix Balance chapter, "
+            "excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf ; "
+            "Rick Snoman, Dance Music Manual, kick/bass sidechain technique "
+            "(named for hip-hop/rap/house/big beat), excerpted in "
+            "books/pdfcoffee.com_dance-music-manual-enes-3-pdf-free.pdf"
         ),
     ),
     KnowledgeChunk(
@@ -156,13 +203,16 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
         type="technique",
         title="Wide stereo bass / mono compatibility",
         body=(
-            "Human hearing can't localize very low frequencies, so widening "
-            "the low end in stereo adds no perceptual width - what it adds "
-            "is phase differences between left and right that partially "
-            "cancel when the mix is summed to mono (phone speakers, "
-            "Bluetooth speakers, and club systems with a single mono sub all "
-            "do this). The usual fix is keeping bass content mono or "
-            "near-mono rather than processing it wide. Mid/Side (M/S) "
+            "Human hearing can't localize very low frequencies (below "
+            "roughly 80Hz), so widening the low end in stereo adds no "
+            "perceptual width there - what it adds is phase differences "
+            "between left and right that partially cancel when the mix is "
+            "summed to mono (phone speakers, Bluetooth speakers, and club "
+            "systems with a single mono sub all do this). Many mixers use a "
+            "looser practical cutoff of ~150Hz for 'keep this mono' rules of "
+            "thumb, above the strict localization limit but still safely "
+            "low. The usual fix is keeping bass content mono or near-mono "
+            "rather than processing it wide. Mid/Side (M/S) "
             "processing - splitting a stereo signal into Mid (L+R) and Side "
             "(L-R) and treating each independently - is the standard tool "
             "for this, and a correlation meter reading near zero or negative "
@@ -177,7 +227,9 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "https://dowdenmusic.com/bass-in-mono/ ; "
             "https://www.sonible.com/blog/stereo-to-mono/ ; "
             "Wessel Oltheten, Mixing with Impact, pp.55-57, 62, excerpted in "
-            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf"
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf ; "
+            "Cristofer Odqvist, Making Sound, 'Mono or Stereo?' and 'Sine "
+            "Tone Bass Double,' excerpted in books/document (1).pdf"
         ),
     ),
     KnowledgeChunk(
@@ -199,7 +251,13 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "some commercial EDM conventionally place bass only on the "
             "off-beats against a kick on every downbeat, while techno and "
             "house allow busier bass patterns as long as the attacks stay "
-            "separated from the kick's."
+            "separated from the kick's. Bass mixed a few milliseconds behind "
+            "the kick (rather than perfectly aligned) often reads as tighter "
+            "and fuller, not looser. To find what's actually carrying a "
+            "track's groove - useful context for judging whether looseness "
+            "there matters - mute candidate instruments one at a time and "
+            "listen for which one the pulse depends on; it's often bass and "
+            "drums together, but not always."
         ),
         source=(
             "https://beatkitchen.io/guides/electronic-music/01-genre-landscape/ ; "
@@ -207,7 +265,10 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "https://musicproductionwiki.com/articles/how-to-use-groove-and-swing-in-music.html ; "
             "Dennis DeSantis, Making Music: 74 Creative Strategies for "
             "Electronic Music Producers, 'Bass Lines and Kick Drums as a "
-            "Single Composite,' pp.158-161, books/MakingMusic_DennisDeSantis.pdf"
+            "Single Composite,' pp.158-161, books/MakingMusic_DennisDeSantis.pdf ; "
+            "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
+            "'Adjust the Timing' and groove-diagnostic sections, excerpted in "
+            "books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf"
         ),
     ),
     KnowledgeChunk(
@@ -216,19 +277,29 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
         title="Transient attack character",
         body=(
             "Attack time - how quickly a sound's envelope rises to its peak "
-            "after an onset - isn't inherently good or bad on its own. A "
-            "slow attack from a compressor is sometimes chosen deliberately "
-            "to let the initial transient through un-clamped and emphasize "
-            "it, and a clearly-defined transient is generally what reads as "
-            "impact and punch. The real risk sits at the other end: "
-            "aggressive limiting or clipping used to chase loudness can "
-            "smear or destroy a transient outright, which is a common way a "
-            "mix loses punch even while measuring louder."
+            "after an onset - isn't inherently good or bad on its own, and "
+            "it directly shapes perceived brightness because most of a "
+            "sound's brightness lives in the transient, not the sustained "
+            "tail. A slow compressor attack (roughly 30ms and up) lets more "
+            "of that initial transient through un-clamped, reading as "
+            "brighter and more energetic; a fast attack (down around 3ms) "
+            "suppresses the transient and darkens/mellows the sound. Neither "
+            "is 'correct' - it depends on whether the material needs more "
+            "bite or needs taming. A clearly-defined transient is generally "
+            "what reads as impact and punch. The real risk sits at the "
+            "extreme fast-attack end: aggressive limiting or clipping used "
+            "to chase loudness can smear or destroy a transient outright, "
+            "which is a common way a mix loses punch even while measuring "
+            "louder - if transients read as unusually sharp/short as well as "
+            "the track measuring loud/over-compressed, over-limiting is a "
+            "likely cause worth checking."
         ),
         source=(
             "game-audio sound-design chapter excerpts, Pro Techniques for "
             "Sound Design, pp.129-131, excerpted in "
-            "books/Pro+Techniques+for+Sound+Design+.pdf"
+            "books/Pro+Techniques+for+Sound+Design+.pdf ; "
+            "Cristofer Odqvist, Making Sound, 'Time for Attack' and "
+            "Compression chapter, excerpted in books/document (1).pdf"
         ),
     ),
     KnowledgeChunk(
@@ -248,6 +319,33 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "than cleaner."
         ),
         source="Wessel Oltheten, Mixing with Impact, p.42, excerpted in books/Mixing_Techniques_for_Audio_-_FINAL.pdf",
+    ),
+    KnowledgeChunk(
+        id="technique_key_harmony",
+        type="technique",
+        title="Key relationship between project and reference",
+        body=(
+            "When two pieces of music are compared or layered, key "
+            "relationships affect how compatible they sound - this is the "
+            "basis of 'harmonic mixing.' Keys close together on the circle "
+            "of fifths (a fifth apart, e.g. C major and G major) share most "
+            "of their notes and tend to combine cleanly; keys far apart on "
+            "the circle (e.g. C major and its tritone, Gb major) share the "
+            "fewest notes and are more likely to clash when stacked. A "
+            "relative major/minor pair (e.g. C major and A minor) is the "
+            "closest possible relationship, sharing identical notes. "
+            "Musicians also commonly associate sharp keys with a brighter "
+            "character and flat keys with a darker one, though that's a "
+            "subjective convention among producers, not an acoustic fact - "
+            "worth mentioning as a possible influence on key choice, not "
+            "stating as settled."
+        ),
+        source=(
+            "Michael Hewitt, Music Theory for Computer Musicians, "
+            "'Expanding Your Knowledge of Keys' and 'The Cycle of Fifths' "
+            "chapters, pp.173, 176, 205-210, excerpted in "
+            "books/feismo.com-music-theory-for-computer-musicians-pr_dea92700f4f0f912aad5eab3a93f1088.pdf"
+        ),
     ),
 ]
 
@@ -290,16 +388,25 @@ SKILL_CHUNKS: list[KnowledgeChunk] = [
     KnowledgeChunk(
         id="skill_beginner_hpf_default",
         type="skill_pitfall",
-        title="Beginner pitfall: reflexive high-pass filtering",
+        title="Beginner pitfall: mishandling a weak low end",
         body=(
             "A common beginner habit is defaulting to a high-pass filter on "
             "every non-bass track as a blanket rule, rather than only where "
             "there's an actual audible problem in that range. Applied "
             "indiscriminately across many tracks, this steadily strips "
             "low-frequency body from the mix and can leave it sounding "
-            "smaller and flatter than the mud it was meant to guard against."
+            "smaller and flatter than the mud it was meant to guard against. "
+            "The related mistake at the other end: when a mix feels short on "
+            "bass or kick weight, reaching straight for an EQ boost instead "
+            "of a level boost - often the balance itself just needs to come "
+            "up, not the tone."
         ),
-        source="Wessel Oltheten, Mixing with Impact, p.42, excerpted in books/Mixing_Techniques_for_Audio_-_FINAL.pdf",
+        source=(
+            "Wessel Oltheten, Mixing with Impact, p.42, excerpted in "
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf ; "
+            "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
+            "excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf"
+        ),
     ),
     KnowledgeChunk(
         id="skill_intermediate_mono_compat",

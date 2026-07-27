@@ -50,6 +50,8 @@ def build_measurements(project: dict, reference: dict, host_bpm: float | None) -
         transients=_transients(project),
         key=project.get("key"),
         key_confidence=project.get("key_confidence"),
+        reference_key=reference.get("key"),
+        reference_key_confidence=reference.get("key_confidence"),
         tempo_bpm=host_bpm or project.get("tempo_bpm"),
         stems=_stems(project),
     )

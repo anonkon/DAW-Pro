@@ -181,6 +181,78 @@ only, no invented claims), then hand-selected into `knowledge/base.py`:
   numeric attack-time threshold exists in the source, so `SOFT_TRANSIENT_MEAN_MS`
   in `retrieval.py` is marked heuristic rather than attributed to the book.
 
+## Second book batch — 5 more sources, key-harmony chunk, reference key added
+
+A second set of 5 books arrived in `books/` (`document.pdf`, `document (1).pdf`,
+`feismo.com-music-theory-for-computer-musicians-...pdf`,
+`pdfcoffee.com_dance-music-manual-...pdf`,
+`toaz.info-the-mixing-engineerx27s-handbook-...pdf`; the leftover
+`err.log`/`extracted.txt` in the same folder are just artifacts of an earlier
+extraction of a PDF already covered — not new source material). Read the
+same way: dedicated extraction pass per book, page-cited candidate facts
+only, hand-selected into `knowledge/base.py`.
+
+- **`document.pdf`** (*The Art of Music Production*, Richard James Burgess)
+  yielded nothing usable — same pattern as the Berklee handbook: the author
+  states in the preface it deliberately excludes EQ/mic/compression content,
+  and covers career/industry topics instead.
+- **`pdfcoffee.com_dance-music-manual-...pdf`** turned out to be a truncated,
+  machine-translated preview (77 pages, cuts off mid-Chapter 3) — despite the
+  filename, none of the genre-specific chapters (House, Trance, Techno, DnB,
+  etc. — all listed in the TOC) are actually present in this copy, so it
+  contributed no new `genre_target` chunks. It did give concrete compression
+  technique content: the kick-punch-as-crest-factor framing, and a
+  sidechain kick-vs-bass ducking technique explicitly named as used in
+  hip-hop/rap/house/big beat, folded into `technique_low_mid_mud` as a
+  dynamics-based alternative to EQ cutting.
+- **`toaz.info-the-mixing-engineerx27s-handbook-...pdf`** (Bobby Owsinski,
+  5th ed., image-based PDF — read via page rendering, not text extraction)
+  was the richest single source: added `genre_acoustic` (LUFS-by-genre
+  table: acoustic/organic material commonly -12 to -14 LUFS, more dynamic
+  range than electronic/pop); deepened `technique_low_mid_mud` with the
+  "Six Trouble Frequency Areas" named artifacts (200Hz "mud," 300-500Hz
+  "boxy," 800Hz thin/cheap) and the "same frequency, same time = fight for
+  attention" framing; deepened `technique_crest_factor` with the
+  "hypercompression" failure-mode name and a concrete glue-compression
+  target (4:1, fast attack, auto release, 1-3dB gain reduction); deepened
+  `technique_timing_swing` with the bass-slightly-behind-kick technique and
+  a mute-to-find-the-pulse groove diagnostic; and gave the "boost level, not
+  EQ" bass pitfall folded into `skill_beginner_hpf_default`. Two claims this
+  agent flagged as not re-verified in its final pass (a Panorama-chapter
+  stereo-panning rule, and "Signs of an Amateur Mix") were spot-checked
+  directly — the amateur-mix list confirmed verbatim but not used (it's a
+  holistic checklist that doesn't map to any single measured trigger, so
+  including it would violate the "no untriggered generic advice" rule this
+  knowledge base has held throughout); the panning claim wasn't found in the
+  page range checked and was dropped rather than guessed at.
+- **`document (1).pdf`** (*Making Sound*, Cristofer Odqvist) was the
+  richest source for the previously-thinnest chunk: gave real millisecond
+  figures for `technique_transient_attack` (slow attack ≥30ms reads
+  brighter/more energetic, fast attack ~3ms darkens/mellows — attack time
+  controls perceived brightness because brightness lives mostly in the
+  transient). Also deepened `technique_stereo_bass_mono` with a second,
+  looser mono-bass threshold (the book gives two different numbers — 80Hz
+  as the strict perceptual localization limit, 150Hz as a looser practical
+  rule of thumb many mixers use — both are kept rather than picking one, per
+  the book's own distinction).
+- **`feismo.com-music-theory-for-computer-musicians-...pdf`** (Michael
+  Hewitt) filled a real, previously-total gap: Layer 1 has detected musical
+  key since it was built, but no chunk ever interpreted it. Added
+  `technique_key_harmony` (circle-of-fifths note-overlap as the mechanism
+  for key compatibility/clash, relative major/minor as the closest
+  relationship, and a properly-hedged sharp-is-brighter/flat-is-darker note
+  — the book itself flags that as a subjective convention among musicians,
+  not an acoustic fact, and the chunk preserves that hedge rather than
+  stating it as settled). This needed a small schema change first:
+  `Measurements` only carried the *project's* detected key, not the
+  reference's, so there was nothing to compare — `reference_key`/
+  `reference_key_confidence` were added (`schemas.py`, populated in
+  `pipeline/measurements.py.build_measurements()`), and a new
+  `_both_keys_detected` trigger in `retrieval.py` fires only when both are
+  present with real confidence (the existing `KEY_CONFIDENCE_FLOOR` in
+  `features.py` already keeps a low-confidence detection from reaching
+  `Measurements.key` at all, so no separate confidence check was needed here).
+
 ## Error handling
 
 Wrap the `structured_llm.invoke()` call with a single retry on transient failures (rate limit / timeout) — no elaborate backoff strategy needed at demo scale, just enough to not fail a whole analysis on one flaky call. Any unrecoverable failure surfaces as `JobStatus.status = "failed"` with the exception message in `error` (per [[04-backend-engine]]).

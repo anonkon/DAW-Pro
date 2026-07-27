@@ -115,6 +115,8 @@ export interface Measurements {
   transients: TransientEvent[];
   key: string | null;
   key_confidence: number | null;
+  reference_key: string | null;
+  reference_key_confidence: number | null;
   tempo_bpm: number | null;
   stems: Record<string, StemSummary>;
 }

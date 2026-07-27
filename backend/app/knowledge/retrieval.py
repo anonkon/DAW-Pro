@@ -46,6 +46,7 @@ _GENRE_ALIASES: list[tuple[str, list[str]]] = [
     ("genre_trap_hiphop", ["trap", "hip hop", "hip-hop", "hiphop", "rap", "drill"]),
     ("genre_edm_electronic", ["edm", "electronic", "trance", "house", "techno", "dubstep"]),
     ("genre_metal", ["metal", "metalcore", "djent", "deathcore"]),
+    ("genre_acoustic", ["acoustic", "folk", "singer-songwriter", "singer/songwriter", "unplugged"]),
 ]
 
 
@@ -93,6 +94,13 @@ def _soft_transients(m: Measurements, has_reference: bool) -> bool:  # noqa: ARG
     return mean_attack > SOFT_TRANSIENT_MEAN_MS
 
 
+def _both_keys_detected(m: Measurements, has_reference: bool) -> bool:
+    # features.py already applies KEY_CONFIDENCE_FLOOR before setting key at
+    # all, so a non-None key here already cleared that bar - no extra
+    # confidence check needed on top of the None check.
+    return has_reference and m.key is not None and m.reference_key is not None
+
+
 # (technique chunk id, trigger predicate, paired skill chunk id, skill level it applies to)
 # The skill chunk is only included alongside its technique when the trigger
 # fires AND the persona is at the matching skill tier - otherwise it's
@@ -104,6 +112,7 @@ _TECHNIQUE_TRIGGERS: list[tuple[str, Callable[[Measurements, bool], bool], str |
     ("technique_timing_swing", _loose_timing, None, None),
     ("technique_thin_low_end", _thin_low_end, "skill_beginner_hpf_default", "beginner"),
     ("technique_transient_attack", _soft_transients, None, None),
+    ("technique_key_harmony", _both_keys_detected, None, None),
 ]
 
 

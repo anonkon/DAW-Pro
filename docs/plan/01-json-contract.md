@@ -124,6 +124,8 @@ class Measurements(BaseModel):
     transients: list[TransientEvent] = []
     key: str | None = None
     key_confidence: float | None = None
+    reference_key: str | None = None              # same detection, run on the reference track
+    reference_key_confidence: float | None = None
     tempo_bpm: float | None = None
     stems: dict[str, StemSummary] = {}    # per Demucs stem (drums/bass/vocals/other), when separation succeeded
 ```
