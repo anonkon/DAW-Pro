@@ -4,6 +4,9 @@
 .env
 .env.local
 
+# reference books (copyrighted, local-only - used to write knowledge/base.py, not redistributed)
+books/
+
 # node / next.js
 **/node_modules/
 dashboard/.next/

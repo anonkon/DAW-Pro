@@ -26,16 +26,52 @@ HOP_LENGTH = 2048
 # otherwise every hat on an 8th reads as maximally off-time.
 GRID_SUBDIVISION = 4
 
-# BS.1770 gives a whole-clip integrated loudness, not a windowed one.
-# short-term/LRA is approximated by re-running the same meter over
-# overlapping slices - see _loudness_lufs for the caveat that introduces.
-LUFS_BLOCK_SEC = 3.0
-LUFS_HOP_SEC = 1.0
+# ITU-R BS.1770-5 Annex 1: K-weighting is a two-stage IIR filter (stage 1
+# models the acoustic effect of the head, stage 2 is a high-pass "RLB"
+# curve), coefficients specified at 48kHz (Tables 1-2). We resample to 48kHz
+# before filtering rather than re-deriving coefficients for the source rate,
+# which the spec doesn't give in closed form - it explicitly allows this
+# ("implementations at other sampling rates will require different
+# coefficient values... tests have shown the algorithm is not sensitive to
+# small variations").
+K_WEIGHT_SR = 48000
+_K_STAGE1_B = (1.53512485958697, -2.69169618940638, 1.19839281085285)
+_K_STAGE1_A = (1.0, -1.69065929318241, 0.73248077421585)
+_K_STAGE2_B = (1.0, -2.0, 1.0)
+_K_STAGE2_A = (1.0, -1.99004745483398, 0.99007225036621)
+
+# BS.1770-5 Annex 1 eq. (3): 400ms gating blocks, 75% overlap.
+GATING_BLOCK_SEC = 0.4
+GATING_OVERLAP = 0.75
+# BS.1770-5 eq. (6)-(7): absolute gate at -70 LUFS, relative gate 10 LU below
+# the absolute-gated mean loudness. Two-stage energy-domain gating, not a
+# simple threshold on individual blocks - see _gated_mean_loudness.
+ABSOLUTE_GATE_LUFS = -70.0
+INTEGRATED_RELATIVE_GATE_LU = 10.0
+
+# EBU R128: Loudness Range (LRA) is built from short-term loudness values on
+# a 3-second window. R128 itself doesn't specify the hop or LRA's own gating
+# in closed form (that's EBU Tech 3342, not fetched here) - 100ms hop and a
+# stricter -20LU relative gate (vs. integrated loudness's -10LU) before
+# taking the 10th-95th percentile spread are the values used by the de facto
+# reference implementation (libebur128), adopted here rather than the -10LU
+# integrated-loudness gate, since LRA is specifically trying to exclude
+# near-silence, not just find "foreground" content.
+LRA_BLOCK_SEC = 3.0
+LRA_HOP_SEC = 0.1
+LRA_RELATIVE_GATE_LU = 20.0
 LRA_LOW_PCT = 10.0
 LRA_HIGH_PCT = 95.0
-ABSOLUTE_GATE_LUFS = -70.0  # per BS.1770; quieter blocks are silence, not programme material
 
-TRUE_PEAK_OVERSAMPLE = 4  # ITU-R BS.1770 true-peak guidance
+# ITU-R BS.1770-5 Annex 2: 4x oversampling (at least 192kHz total) is the
+# summary-step guidance for estimating true-peak level between samples. The
+# spec's own reference filter is a specific 48-tap/4-phase FIR; we use
+# scipy's polyphase resampler instead, which oversamples and low-pass
+# filters in one step - the spec permits any filter that "gives similar or
+# superior results" to its reference implementation, and also notes the
+# 12.04dB attenuation step it describes is "not necessary if the
+# calculations are performed in floating point," which we do.
+TRUE_PEAK_OVERSAMPLE = 4
 
 # Long enough to catch a slow pad's attack, short enough that the next onset
 # rarely intrudes into the window.
@@ -263,59 +299,100 @@ def _phase_correlation(y_raw: np.ndarray) -> float | None:
     return None if np.isnan(correlation) else round(correlation, 3)
 
 
-def _loudness_lufs(y_raw: np.ndarray, sr: float) -> dict:
-    """Integrated LUFS, a representative short-term LUFS, and loudness range.
+def _k_weighted_power(y_raw: np.ndarray, sr: float) -> np.ndarray:
+    """Per-sample K-weighted power, summed across channels.
 
-    pyloudnorm only exposes a whole-clip integrated_loudness(), not a
-    windowed short-term API, so short-term values are approximated by
-    re-running that same meter over overlapping 3s slices. That reapplies the
-    absolute gate per-slice rather than the full relative-gating pass EBU R128
-    LRA uses globally - a simplification, good enough to flag "loudness is
-    inconsistent across the track" without claiming broadcast-spec precision.
+    ITU-R BS.1770-5 Annex 1 eq. (1)-(2): each channel is K-weighted then
+    squared, and channels are summed with weight G_i before the log. We only
+    ever have L/R/mono (G_i = 1.0 for all of L/R/C - no surround/LFE inputs),
+    so the weighted sum is just a plain sum of per-channel power.
     """
-    import pyloudnorm as pyln
+    import scipy.signal as signal
 
-    audio = y_raw.T if np.ndim(y_raw) == 2 else y_raw  # pyloudnorm wants (samples,) or (samples, channels)
-    meter = pyln.Meter(sr)
+    channels = y_raw if np.ndim(y_raw) == 2 else y_raw[np.newaxis, :]
+    if int(round(sr)) != K_WEIGHT_SR:
+        channels = np.stack([signal.resample_poly(ch, K_WEIGHT_SR, int(round(sr))) for ch in channels])
 
-    try:
-        integrated = meter.integrated_loudness(audio)
-    except Exception:  # noqa: BLE001 - too short/quiet for BS.1770 gating to produce a value
-        integrated = float("-inf")
-    integrated_lufs = float(integrated) if np.isfinite(integrated) else None
+    power = np.zeros(channels.shape[1])
+    for channel in channels:
+        stage1 = signal.lfilter(_K_STAGE1_B, _K_STAGE1_A, channel)
+        weighted = signal.lfilter(_K_STAGE2_B, _K_STAGE2_A, stage1)
+        power += weighted**2
+    return power
 
-    n = audio.shape[0]
-    block = int(LUFS_BLOCK_SEC * sr)
-    hop = int(LUFS_HOP_SEC * sr)
-    short_term: list[float] = []
-    if block > 0 and n >= block:
-        for start in range(0, n - block + 1, hop):
-            try:
-                value = meter.integrated_loudness(audio[start : start + block])
-            except Exception:  # noqa: BLE001 - a silent slice fails gating; skip it
-                continue
-            if np.isfinite(value) and value > ABSOLUTE_GATE_LUFS:
-                short_term.append(float(value))
 
+def _block_loudness(power: np.ndarray, block_sec: float, hop_sec: float) -> np.ndarray:
+    """Ungated block loudness (BS.1770-5 eq. (3)-(4)) at K_WEIGHT_SR, in LKFS."""
+    block = int(round(block_sec * K_WEIGHT_SR))
+    hop = int(round(hop_sec * K_WEIGHT_SR))
+    if block <= 0 or power.size < block:
+        return np.array([])
+
+    starts = np.arange(0, power.size - block + 1, hop)
+    block_mean_power = np.array([power[s : s + block].mean() for s in starts])
+    with np.errstate(divide="ignore"):
+        return -0.691 + 10.0 * np.log10(np.maximum(block_mean_power, 1e-12))
+
+
+def _energy_mean_db(values_db: np.ndarray) -> float:
+    """Mean of dB values in the linear (power) domain, not the log domain -
+    matches BS.1770-5's own sum-then-log structure (eq. (5))."""
+    linear = 10.0 ** (values_db / 10.0)
+    return float(10.0 * np.log10(linear.mean()))
+
+
+def _gated_mean_loudness(block_loudness: np.ndarray, relative_gate_lu: float) -> tuple[float | None, np.ndarray]:
+    """Two-stage energy-domain gating (BS.1770-5 eq. (5)-(7)): drop blocks
+    below the absolute gate, take the energy mean of what's left, then drop
+    blocks below (that mean - relative_gate_lu) and take the mean again."""
+    absolute_gated = block_loudness[block_loudness > ABSOLUTE_GATE_LUFS]
+    if absolute_gated.size == 0:
+        return None, absolute_gated
+
+    absolute_mean = _energy_mean_db(absolute_gated)
+    relative_gated = absolute_gated[absolute_gated > (absolute_mean - relative_gate_lu)]
+    if relative_gated.size == 0:
+        return absolute_mean, absolute_gated
+    return _energy_mean_db(relative_gated), relative_gated
+
+
+def _loudness_lufs(y_raw: np.ndarray, sr: float) -> dict:
+    """Integrated LUFS (ITU-R BS.1770-5), a representative short-term LUFS,
+    and Loudness Range (EBU R128) - implemented directly from the K-weighting
+    filter and gating equations in the published specs (see the constants
+    above) rather than approximated against a library's black-box output.
+    """
+    power = _k_weighted_power(y_raw, sr)
+    if power.size == 0:
+        return {"integrated_lufs": None, "short_term_lufs": None, "loudness_range_lu": None}
+
+    integrated_blocks = _block_loudness(power, GATING_BLOCK_SEC, GATING_BLOCK_SEC * (1.0 - GATING_OVERLAP))
+    integrated_lufs, _ = _gated_mean_loudness(integrated_blocks, INTEGRATED_RELATIVE_GATE_LU)
+
+    short_term_blocks = _block_loudness(power, LRA_BLOCK_SEC, LRA_HOP_SEC)
+    short_term_lufs = None
     lra = None
-    if len(short_term) >= 2:
-        lra = round(float(np.percentile(short_term, LRA_HIGH_PCT) - np.percentile(short_term, LRA_LOW_PCT)), 2)
+    if short_term_blocks.size:
+        short_term_lufs, lra_blocks = _gated_mean_loudness(short_term_blocks, LRA_RELATIVE_GATE_LU)
+        if lra_blocks.size >= 2:
+            lra = round(float(np.percentile(lra_blocks, LRA_HIGH_PCT) - np.percentile(lra_blocks, LRA_LOW_PCT)), 2)
 
     return {
         "integrated_lufs": round(integrated_lufs, 2) if integrated_lufs is not None else None,
-        "short_term_lufs": round(float(np.median(short_term)), 2) if short_term else None,
+        "short_term_lufs": round(short_term_lufs, 2) if short_term_lufs is not None else None,
         "loudness_range_lu": lra,
     }
 
 
 def _true_peak_dbtp(y: np.ndarray) -> float | None:
-    """Oversampled peak level in dBTP (true peak).
+    """Oversampled peak level in dBTP (true peak), per ITU-R BS.1770-5 Annex 2.
 
     Sample-peak metering misses inter-sample peaks that a real D/A
     reconstruction filter would produce - a signal sitting right at 0dBFS on
     consecutive samples can reconstruct several tenths of a dB higher.
-    Oversampling by 4x approximates that reconstructed peak, per ITU-R
-    BS.1770's true-peak guidance.
+    Oversampling by TRUE_PEAK_OVERSAMPLE approximates that reconstructed
+    peak - see the constant's definition above for how this maps onto the
+    spec's 5-stage reference algorithm.
     """
     import librosa
     import scipy.signal as signal

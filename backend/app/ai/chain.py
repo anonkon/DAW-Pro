@@ -142,7 +142,9 @@ def _gemini_narrative(
         preferred_genres=", ".join(persona.preferred_genres) or "unspecified",
     )
     session_history = build_session_history(session_id, measurements.eq_comparison) if session_id else []
-    knowledge = retrieve_knowledge(measurements, genre, persona.skill_level, persona.preferred_genres)
+    knowledge = retrieve_knowledge(
+        measurements, genre, persona.skill_level, persona.preferred_genres, has_reference=bool(reference_features)
+    )
     human_payload = {
         "sonic_intention": sonic_intention,
         "genre": genre,

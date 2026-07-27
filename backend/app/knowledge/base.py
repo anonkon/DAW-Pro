@@ -12,9 +12,11 @@ class KnowledgeChunk(BaseModel):
 
     This is background context, not a fact about the user's own audio - the
     system prompt in chain.py tells the model to treat it that way. `source`
-    cites where the claim came from, or says "heuristic" for a threshold we
-    chose ourselves rather than found in a reference (same transparency
-    features.py already uses for ABSOLUTE_GATE_LUFS/KEY_CONFIDENCE_FLOOR).
+    cites where the claim came from (a URL, or an author/book/page citation
+    for the excerpts in books/ - see docs/plan/05-ai-brain.md for the full
+    reading list), or says "heuristic" for a threshold we chose ourselves
+    rather than found in a reference (same transparency features.py already
+    uses for ABSOLUTE_GATE_LUFS/KEY_CONFIDENCE_FLOOR).
     """
 
     id: str
@@ -74,6 +76,24 @@ GENRE_CHUNKS: list[KnowledgeChunk] = [
         ),
         source="https://www.edmprod.com/lufs/",
     ),
+    KnowledgeChunk(
+        id="genre_metal",
+        type="genre_target",
+        title="Metal spectral-balance targets",
+        body=(
+            "Metal mixes commonly carry excessive energy below 40Hz - 'sonic "
+            "sludge' that eats headroom without adding perceived weight - so "
+            "a high-pass around 40-55Hz is standard practice. The 55-125Hz "
+            "range is where the genre's real weight and impact actually live. "
+            "Muddiness concentrates around 200-550Hz (typically centered near "
+            "230Hz), and brightness/air for the master usually comes from a "
+            "broad boost around 6-12kHz plus a lighter one around 10-14kHz."
+        ),
+        source=(
+            "Mark Mynett, Metal Music Manual (mastering chapter), pp.45-49, "
+            "excerpted in books/The_Art_of_Mastering_in_Music_-_Final.pdf"
+        ),
+    ),
 ]
 
 # --- Technique explanations, each keyed to a measurement trigger in
@@ -90,14 +110,20 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "electronic music sits around 6-10 dB of crest factor; below "
             "roughly 4 dB a track tends to read as flat and fatiguing, "
             "because the transients have been squashed down toward the "
-            "sustain level rather than standing out above it. Once a source "
-            "is already that flat, more compression won't add punch back - "
-            "it can only flatten it further."
+            "sustain level rather than standing out above it. In mastering "
+            "practice, limiter gain reduction is usually kept within 3-4dB "
+            "at any single stage - splitting a bigger reduction across two "
+            "gentler stages sounds more natural than one heavy one, and "
+            "leaning on limiting for loudness rather than earlier mix "
+            "decisions tends to flatten sharp transient energy into "
+            "something blunter and more fatiguing."
         ),
         source=(
             "https://www.izotope.com/en/learn/what-is-crest-factor ; "
             "https://polarity.me/posts/polarity-music/2025-04-09-measure-compression-with-the-crest-factor/ ; "
-            "https://mixanalytic.com/guides/dynamic-range-analysis"
+            "https://mixanalytic.com/guides/dynamic-range-analysis ; "
+            "mastering-chapter excerpts, The Art of Mastering in Music, "
+            "pp.61-63, excerpted in books/The_Art_of_Mastering_in_Music_-_Final.pdf"
         ),
     ),
     KnowledgeChunk(
@@ -110,11 +136,19 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "several parts overlap there, the energy sums and the mix reads "
             "as thick and undefined rather than punchy. It's usually cured "
             "by cutting that range on the instruments that don't need it, "
-            "rather than boosting the ones that do."
+            "rather than boosting the ones that do. A useful diagnostic is "
+            "applying a broad high-frequency boost across the whole mix "
+            "midway through mixing - it often reveals a problem a dull-"
+            "sounding mix was masking more clearly than the boost itself "
+            "fixes anything. Reflexively high-passing every non-bass "
+            "instrument 'because lows should only come from bass' is a "
+            "common but usually unnecessary habit of its own."
         ),
         source=(
             "https://babyaud.io/blog/fix-a-muddy-mix ; "
-            "https://www.izotope.com/en/learn/8-common-compression-mistakes-music-producers-make"
+            "https://www.izotope.com/en/learn/8-common-compression-mistakes-music-producers-make ; "
+            "Wessel Oltheten, Mixing with Impact, pp.42, 44-45, excerpted in "
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf"
         ),
     ),
     KnowledgeChunk(
@@ -128,12 +162,22 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "cancel when the mix is summed to mono (phone speakers, "
             "Bluetooth speakers, and club systems with a single mono sub all "
             "do this). The usual fix is keeping bass content mono or "
-            "near-mono rather than processing it wide."
+            "near-mono rather than processing it wide. Mid/Side (M/S) "
+            "processing - splitting a stereo signal into Mid (L+R) and Side "
+            "(L-R) and treating each independently - is the standard tool "
+            "for this, and a correlation meter reading near zero or negative "
+            "is a direct sign of poor mono compatibility worth checking "
+            "before committing to a wide low end. The convention has a "
+            "physical precedent too: vinyl cutting kept large low-frequency "
+            "energy in the Mid channel because strong out-of-phase bass "
+            "could push the cutting stylus out of the groove."
         ),
         source=(
             "https://www.masteringthemix.com/blogs/learn/how-to-add-width-to-bass-without-losing-mono-compatibility ; "
             "https://dowdenmusic.com/bass-in-mono/ ; "
-            "https://www.sonible.com/blog/stereo-to-mono/"
+            "https://www.sonible.com/blog/stereo-to-mono/ ; "
+            "Wessel Oltheten, Mixing with Impact, pp.55-57, 62, excerpted in "
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf"
         ),
     ),
     KnowledgeChunk(
@@ -148,13 +192,62 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "often deliberately 1/16-quantized rolls rather than dead-on the "
             "grid. Low measured rhythmic cohesion is worth noting either way, "
             "but whether it reads as 'sloppy' or 'groovy' depends on whether "
-            "it's consistent (systematic offset) or scattered (random)."
+            "it's consistent (systematic offset) or scattered (random). One "
+            "concrete way to keep a low end clear while still allowing "
+            "rhythmic movement is treating kick and bass as a single "
+            "monophonic line whose note onsets never overlap - trance and "
+            "some commercial EDM conventionally place bass only on the "
+            "off-beats against a kick on every downbeat, while techno and "
+            "house allow busier bass patterns as long as the attacks stay "
+            "separated from the kick's."
         ),
         source=(
             "https://beatkitchen.io/guides/electronic-music/01-genre-landscape/ ; "
             "https://strongmocha.com/creator-sound-design/midi-timing/ ; "
-            "https://musicproductionwiki.com/articles/how-to-use-groove-and-swing-in-music.html"
+            "https://musicproductionwiki.com/articles/how-to-use-groove-and-swing-in-music.html ; "
+            "Dennis DeSantis, Making Music: 74 Creative Strategies for "
+            "Electronic Music Producers, 'Bass Lines and Kick Drums as a "
+            "Single Composite,' pp.158-161, books/MakingMusic_DennisDeSantis.pdf"
         ),
+    ),
+    KnowledgeChunk(
+        id="technique_transient_attack",
+        type="technique",
+        title="Transient attack character",
+        body=(
+            "Attack time - how quickly a sound's envelope rises to its peak "
+            "after an onset - isn't inherently good or bad on its own. A "
+            "slow attack from a compressor is sometimes chosen deliberately "
+            "to let the initial transient through un-clamped and emphasize "
+            "it, and a clearly-defined transient is generally what reads as "
+            "impact and punch. The real risk sits at the other end: "
+            "aggressive limiting or clipping used to chase loudness can "
+            "smear or destroy a transient outright, which is a common way a "
+            "mix loses punch even while measuring louder."
+        ),
+        source=(
+            "game-audio sound-design chapter excerpts, Pro Techniques for "
+            "Sound Design, pp.129-131, excerpted in "
+            "books/Pro+Techniques+for+Sound+Design+.pdf"
+        ),
+    ),
+    KnowledgeChunk(
+        id="technique_thin_low_end",
+        type="technique",
+        title="Thin/small low end vs. a reference",
+        body=(
+            "A low end that reads as thin or small relative to a reference "
+            "track is often caused by over-applying high-pass filters - a "
+            "common habit is reflexively high-passing every non-bass "
+            "instrument on the assumption that 'lows should only come from "
+            "bass,' which strips low-frequency body from parts that "
+            "actually needed some. Unless there's an audible problem "
+            "(rumble, mud, phase issues), a smaller corrective shelf or bell "
+            "move is usually enough - indiscriminate high-passing across a "
+            "mix tends to make it progressively smaller and flatter rather "
+            "than cleaner."
+        ),
+        source="Wessel Oltheten, Mixing with Impact, p.42, excerpted in books/Mixing_Techniques_for_Audio_-_FINAL.pdf",
     ),
 ]
 
@@ -168,11 +261,19 @@ SKILL_CHUNKS: list[KnowledgeChunk] = [
         type="skill_pitfall",
         title="Beginner pitfall: master-bus over-compression",
         body=(
-            "A common beginner habit is reaching for heavy compression on "
-            "the master bus for 'glue,' which instead squashes the whole "
-            "mix's dynamics at once and reads as mud rather than punch."
+            "A common beginner habit is reaching for heavy compression or a "
+            "limiter on the master bus for 'glue' or extra loudness, which "
+            "squashes the whole mix's dynamics at once rather than fixing "
+            "the underlying arrangement or level-balance issue. Overusing "
+            "limiting this way takes sharp, punchy transient energy and "
+            "flattens it into something blunter and more fatiguing, "
+            "sometimes with audible distortion in the upper-mids."
         ),
-        source="https://babyaud.io/blog/fix-a-muddy-mix",
+        source=(
+            "https://babyaud.io/blog/fix-a-muddy-mix ; mastering-chapter "
+            "excerpts, The Art of Mastering in Music, pp.61-63, excerpted in "
+            "books/The_Art_of_Mastering_in_Music_-_Final.pdf"
+        ),
     ),
     KnowledgeChunk(
         id="skill_beginner_low_mid_stacking",
@@ -187,17 +288,35 @@ SKILL_CHUNKS: list[KnowledgeChunk] = [
         source="https://adrianmilea.com/how-to-fix-muddy-mix/",
     ),
     KnowledgeChunk(
+        id="skill_beginner_hpf_default",
+        type="skill_pitfall",
+        title="Beginner pitfall: reflexive high-pass filtering",
+        body=(
+            "A common beginner habit is defaulting to a high-pass filter on "
+            "every non-bass track as a blanket rule, rather than only where "
+            "there's an actual audible problem in that range. Applied "
+            "indiscriminately across many tracks, this steadily strips "
+            "low-frequency body from the mix and can leave it sounding "
+            "smaller and flatter than the mud it was meant to guard against."
+        ),
+        source="Wessel Oltheten, Mixing with Impact, p.42, excerpted in books/Mixing_Techniques_for_Audio_-_FINAL.pdf",
+    ),
+    KnowledgeChunk(
         id="skill_intermediate_mono_compat",
         type="skill_pitfall",
         title="Intermediate pitfall: stereo width without mono checks",
         body=(
             "Producers past the beginner stage often have decent gain "
-            "staging but still reach for stereo-widening on the low end "
-            "without checking mono compatibility, since the wideness sounds "
-            "impressive in stereo and the mono cancellation is easy to miss "
-            "without deliberately checking for it."
+            "staging but still push stereo-widening tools on the low end "
+            "without watching a correlation meter, since the extra width "
+            "sounds impressive in isolation and the resulting mono "
+            "cancellation is easy to miss unless it's actively checked for."
         ),
-        source="https://www.sonible.com/blog/stereo-to-mono/",
+        source=(
+            "https://www.sonible.com/blog/stereo-to-mono/ ; Wessel Oltheten, "
+            "Mixing with Impact, p.62, excerpted in "
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf"
+        ),
     ),
 ]
 
