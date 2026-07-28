@@ -882,7 +882,81 @@
     "key": "A minor",
     "key_confidence": 0.78,
     "reference_key": "E minor",
-    "reference_key_confidence": 0.71
+    "reference_key_confidence": 0.71,
+    "stems": {
+      "drums": {
+        "band_energy_db": {
+          "low": -10.2,
+          "low-mid": -14.1,
+          "mid": -12.6,
+          "high-mid": -16.3,
+          "high": -20.4
+        },
+        "loudness": {
+          "peak_db": -3.2,
+          "rms_db": -14.1,
+          "crest_factor_db": 10.9,
+          "integrated_lufs": -12.9,
+          "short_term_lufs": -13.1,
+          "true_peak_dbtp": -3.1,
+          "loudness_range_lu": 3.0
+        }
+      },
+      "bass": {
+        "band_energy_db": {
+          "low": -6.1,
+          "low-mid": -11.4,
+          "mid": -28.3,
+          "high-mid": -42.1,
+          "high": -55.0
+        },
+        "loudness": {
+          "peak_db": -4.5,
+          "rms_db": -13.8,
+          "crest_factor_db": 9.3,
+          "integrated_lufs": -12.600000000000001,
+          "short_term_lufs": -12.8,
+          "true_peak_dbtp": -4.4,
+          "loudness_range_lu": 3.0
+        }
+      },
+      "vocals": {
+        "band_energy_db": {
+          "low": -38.2,
+          "low-mid": -22.5,
+          "mid": -9.4,
+          "high-mid": -13.2,
+          "high": -24.1
+        },
+        "loudness": {
+          "peak_db": -6.1,
+          "rms_db": -16.2,
+          "crest_factor_db": 10.1,
+          "integrated_lufs": -15.0,
+          "short_term_lufs": -15.2,
+          "true_peak_dbtp": -6.0,
+          "loudness_range_lu": 3.0
+        }
+      },
+      "other": {
+        "band_energy_db": {
+          "low": -19.3,
+          "low-mid": -16.2,
+          "mid": -14.5,
+          "high-mid": -15.8,
+          "high": -18.9
+        },
+        "loudness": {
+          "peak_db": -5.8,
+          "rms_db": -15.9,
+          "crest_factor_db": 10.1,
+          "integrated_lufs": -14.700000000000001,
+          "short_term_lufs": -14.9,
+          "true_peak_dbtp": -5.7,
+          "loudness_range_lu": 3.0
+        }
+      }
+    }
   },
   "eq_comparison": [
     {

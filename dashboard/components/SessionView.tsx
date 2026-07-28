@@ -10,6 +10,7 @@ import { TimingGrid } from "./TimingGrid";
 import { LoudnessCompare } from "./LoudnessCompare";
 import { StereoWidthChart } from "./StereoWidthChart";
 import { TransientAttackChart } from "./TransientAttackChart";
+import { StemsBreakdown } from "./StemsBreakdown";
 import { MentorRail } from "./MentorRail";
 import { StatTile } from "./StatTile";
 import { Panel } from "./Panel";
@@ -294,6 +295,15 @@ export function SessionView({
                   <TransientAttackChart transients={m.transients} />
                 </Panel>
               </div>
+            )}
+
+            {Object.keys(m.stems).length > 0 && (
+              <Panel
+                title="Stem breakdown"
+                aside={<span className="text-label text-ink-muted">{Object.keys(m.stems).length} stems</span>}
+              >
+                <StemsBreakdown stems={m.stems} />
+              </Panel>
             )}
           </>
         )}
