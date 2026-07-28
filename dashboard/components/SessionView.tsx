@@ -8,6 +8,8 @@ import { Waveform } from "./Waveform";
 import { SpectrumChart } from "./SpectrumChart";
 import { TimingGrid } from "./TimingGrid";
 import { LoudnessCompare } from "./LoudnessCompare";
+import { StereoWidthChart } from "./StereoWidthChart";
+import { TransientAttackChart } from "./TransientAttackChart";
 import { MentorRail } from "./MentorRail";
 import { StatTile } from "./StatTile";
 import { Panel } from "./Panel";
@@ -219,6 +221,58 @@ export function SessionView({
               />
             </div>
 
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <StatTile
+                label="Integrated loudness"
+                value={m.loudness.project.integrated_lufs?.toFixed(1) ?? null}
+                unit="LUFS"
+                tone="neutral"
+                note="Target depends on genre"
+              />
+              <StatTile
+                label="Loudness range"
+                value={m.loudness.project.loudness_range_lu?.toFixed(1) ?? null}
+                unit="LU"
+                tone="neutral"
+              />
+              <StatTile
+                label="True peak"
+                value={m.loudness.project.true_peak_dbtp?.toFixed(1) ?? null}
+                unit="dBTP"
+                tone={truePeakTone(m.loudness.project.true_peak_dbtp)}
+                note={
+                  m.loudness.project.true_peak_dbtp != null && m.loudness.project.true_peak_dbtp > 0
+                    ? "Over full scale"
+                    : undefined
+                }
+              />
+              <StatTile
+                label="Crest factor"
+                value={m.loudness.project.crest_factor_db?.toFixed(1) ?? null}
+                unit="dB"
+                tone={crestFactorTone(m.loudness.project.crest_factor_db)}
+                note="Peak-to-RMS gap"
+              />
+              <StatTile
+                label="Detected key"
+                value={m.key ?? null}
+                tone="neutral"
+                note={m.key_confidence != null ? `${Math.round(m.key_confidence * 100)}% confidence` : undefined}
+              />
+              {hasReference && (
+                <StatTile
+                  label="Reference key"
+                  value={m.reference_key ?? null}
+                  tone="neutral"
+                  note={
+                    m.reference_key_confidence != null
+                      ? `${Math.round(m.reference_key_confidence * 100)}% confidence`
+                      : undefined
+                  }
+                />
+              )}
+            </div>
+
             <div className="grid gap-5 lg:grid-cols-2">
               <Panel title="Loudness">
                 <LoudnessCompare loudness={m.loudness} hasReference={hasReference} />
@@ -227,6 +281,20 @@ export function SessionView({
                 <TimingGrid timing={m.timing} tempoBpm={m.tempo_bpm} />
               </Panel>
             </div>
+
+            {(m.stereo_width.length > 0 || m.transients.length > 0) && (
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Panel title="Stereo width" aside={<span className="text-label text-ink-muted">side vs mid, per band</span>}>
+                  <StereoWidthChart bands={m.stereo_width} />
+                </Panel>
+                <Panel
+                  title="Transient attack"
+                  aside={<span className="text-label text-ink-muted">{m.transients.length} onsets</span>}
+                >
+                  <TransientAttackChart transients={m.transients} />
+                </Panel>
+              </div>
+            )}
           </>
         )}
       </main>
@@ -255,4 +323,23 @@ function phaseTone(v: string | null): "neutral" | "good" | "warning" | "critical
   if (v === "problematic") return "critical";
   if (v === "in_phase") return "good";
   return "neutral";
+}
+
+// Mirrors backend/app/knowledge/retrieval.py CREST_FACTOR_LOW_THRESHOLD_DB
+// (6dB) and the "<4dB reads flat/fatiguing" figure in technique_crest_factor
+// - same thresholds, not separately invented for the UI.
+function crestFactorTone(db: number | null | undefined): "neutral" | "good" | "warning" | "critical" {
+  if (db == null) return "neutral";
+  if (db < 4) return "critical";
+  if (db < 6) return "warning";
+  return "good";
+}
+
+// -1 dBTP is the ceiling this app's own knowledge base cites for every
+// seeded genre (see knowledge/base.py). Above 0 dBTP is over full scale.
+function truePeakTone(dbtp: number | null | undefined): "neutral" | "good" | "warning" | "critical" {
+  if (dbtp == null) return "neutral";
+  if (dbtp > 0) return "critical";
+  if (dbtp > -1) return "warning";
+  return "good";
 }

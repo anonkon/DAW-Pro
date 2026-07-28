@@ -1,5 +1,5 @@
 {
-  "summary": "Your beat has a solid rhythmic foundation and perfect phase alignment (1.0 correlation), but the low-end band (20–250 Hz) is significantly louder than your reference (-8.16 dB vs -14.92 dB). This extra sub energy is driving your overall loudness to -12.98 dB RMS compared to the reference's -18.78 dB RMS.",
+  "summary": "Your beat has a solid rhythmic foundation and perfect phase alignment (1.0 correlation), but the low-end band (20\u00e2\u20ac\u201c250 Hz) is significantly louder than your reference (-8.16 dB vs -14.92 dB). This extra sub energy is driving your overall loudness to -12.98 dB RMS compared to the reference's -18.78 dB RMS.",
   "issues": [
     {
       "title": "Heavy Low-End Energy",
@@ -783,14 +783,106 @@
     "loudness": {
       "project": {
         "peak_db": -1.498845774110028,
-        "rms_db": -12.978551864624023
+        "rms_db": -12.978551864624023,
+        "crest_factor_db": 8.2,
+        "integrated_lufs": -11.8,
+        "short_term_lufs": -11.5,
+        "true_peak_dbtp": -0.8,
+        "loudness_range_lu": 4.1
       },
       "reference": {
         "peak_db": -1.0026803522630903,
-        "rms_db": -18.77743148803711
+        "rms_db": -18.77743148803711,
+        "crest_factor_db": 12.4,
+        "integrated_lufs": -15.2,
+        "short_term_lufs": -15.0,
+        "true_peak_dbtp": -1.2,
+        "loudness_range_lu": 6.3
       }
     },
-    "tempo_bpm": 120.0
+    "tempo_bpm": 120.0,
+    "stereo_width": [
+      {
+        "label": "low",
+        "hz_low": 20.0,
+        "hz_high": 250.0,
+        "width_db": -3.2
+      },
+      {
+        "label": "low-mid",
+        "hz_low": 250.0,
+        "hz_high": 500.0,
+        "width_db": -13.8
+      },
+      {
+        "label": "mid",
+        "hz_low": 500.0,
+        "hz_high": 2000.0,
+        "width_db": -17.6
+      },
+      {
+        "label": "high-mid",
+        "hz_low": 2000.0,
+        "hz_high": 6000.0,
+        "width_db": -19.4
+      },
+      {
+        "label": "high",
+        "hz_low": 6000.0,
+        "hz_high": 20000.0,
+        "width_db": -21.9
+      }
+    ],
+    "transients": [
+      {
+        "onset_sec": 0.14,
+        "attack_ms": 6.2
+      },
+      {
+        "onset_sec": 0.62,
+        "attack_ms": 8.9
+      },
+      {
+        "onset_sec": 1.1,
+        "attack_ms": 5.1
+      },
+      {
+        "onset_sec": 1.58,
+        "attack_ms": 41.3
+      },
+      {
+        "onset_sec": 2.06,
+        "attack_ms": 7.4
+      },
+      {
+        "onset_sec": 2.54,
+        "attack_ms": 9.8
+      },
+      {
+        "onset_sec": 3.02,
+        "attack_ms": 38.6
+      },
+      {
+        "onset_sec": 3.5,
+        "attack_ms": 6.7
+      },
+      {
+        "onset_sec": 3.98,
+        "attack_ms": 10.2
+      },
+      {
+        "onset_sec": 4.46,
+        "attack_ms": 47.9
+      },
+      {
+        "onset_sec": 4.94,
+        "attack_ms": 7.1
+      }
+    ],
+    "key": "A minor",
+    "key_confidence": 0.78,
+    "reference_key": "E minor",
+    "reference_key_confidence": 0.71
   },
   "eq_comparison": [
     {
