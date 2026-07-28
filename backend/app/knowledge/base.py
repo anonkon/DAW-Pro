@@ -46,9 +46,9 @@ GENRE_CHUNKS: list[KnowledgeChunk] = [
             "on small speakers that can't reproduce true sub-bass."
         ),
         source=(
-            "https://luvlang.studio/blog/how-loud-should-my-master-be ; "
-            "https://beatstorapon.com/blog/rap-mastering-settings-2025-professional-targets-presets-and-platform-delivery-for-rap-trap-rb/ ; "
-            "https://gearspace.com/board/mastering-forum/1248356-low-frequency-extension-modern-rap-records.html ; "
+            "https://luvlang.studio/blog/how-loud-should-my-master-be  |  "
+            "https://beatstorapon.com/blog/rap-mastering-settings-2025-professional-targets-presets-and-platform-delivery-for-rap-trap-rb/  |  "
+            "https://gearspace.com/board/mastering-forum/1248356-low-frequency-extension-modern-rap-records.html  |  "
             "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
             "excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf"
         ),
@@ -131,7 +131,7 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
         body=(
             "Crest factor is the gap between peak and RMS level - a rough "
             "read on how much punch is left in a signal. Most well-produced "
-            "electronic music sits around 6-10 dB of crest factor; below "
+            "electronic music sits around 6-10 dB of crest factor. Below "
             "roughly 4 dB a track tends to read as flat and fatiguing, "
             "because the transients have been squashed down toward the "
             "sustain level rather than standing out above it. In mastering "
@@ -149,11 +149,11 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "only 1-3dB of gain reduction."
         ),
         source=(
-            "https://www.izotope.com/en/learn/what-is-crest-factor ; "
-            "https://polarity.me/posts/polarity-music/2025-04-09-measure-compression-with-the-crest-factor/ ; "
-            "https://mixanalytic.com/guides/dynamic-range-analysis ; "
+            "https://www.izotope.com/en/learn/what-is-crest-factor  |  "
+            "https://polarity.me/posts/polarity-music/2025-04-09-measure-compression-with-the-crest-factor/  |  "
+            "https://mixanalytic.com/guides/dynamic-range-analysis  |  "
             "mastering-chapter excerpts, The Art of Mastering in Music, "
-            "pp.61-63, excerpted in books/The_Art_of_Mastering_in_Music_-_Final.pdf ; "
+            "pp.61-63, excerpted in books/The_Art_of_Mastering_in_Music_-_Final.pdf  |  "
             "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), Master "
             "Mix chapter, and Cristofer Odqvist, Making Sound, 'Ways to Glue "
             "a Mix,' excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf "
@@ -186,13 +186,13 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "unnecessary habit of its own."
         ),
         source=(
-            "https://babyaud.io/blog/fix-a-muddy-mix ; "
-            "https://www.izotope.com/en/learn/8-common-compression-mistakes-music-producers-make ; "
+            "https://babyaud.io/blog/fix-a-muddy-mix  |  "
+            "https://www.izotope.com/en/learn/8-common-compression-mistakes-music-producers-make  |  "
             "Wessel Oltheten, Mixing with Impact, pp.42, 44-45, excerpted in "
-            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf ; "
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf  |  "
             "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
             "'Six Trouble Frequency Areas' and Mix Balance chapter, "
-            "excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf ; "
+            "excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf  |  "
             "Rick Snoman, Dance Music Manual, kick/bass sidechain technique "
             "(named for hip-hop/rap/house/big beat), excerpted in "
             "books/pdfcoffee.com_dance-music-manual-enes-3-pdf-free.pdf"
@@ -223,11 +223,11 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "could push the cutting stylus out of the groove."
         ),
         source=(
-            "https://www.masteringthemix.com/blogs/learn/how-to-add-width-to-bass-without-losing-mono-compatibility ; "
-            "https://dowdenmusic.com/bass-in-mono/ ; "
-            "https://www.sonible.com/blog/stereo-to-mono/ ; "
+            "https://www.masteringthemix.com/blogs/learn/how-to-add-width-to-bass-without-losing-mono-compatibility  |  "
+            "https://dowdenmusic.com/bass-in-mono/  |  "
+            "https://www.sonible.com/blog/stereo-to-mono/  |  "
             "Wessel Oltheten, Mixing with Impact, pp.55-57, 62, excerpted in "
-            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf ; "
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf  |  "
             "Cristofer Odqvist, Making Sound, 'Mono or Stereo?' and 'Sine "
             "Tone Bass Double,' excerpted in books/document (1).pdf"
         ),
@@ -238,7 +238,7 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
         title="Timing looseness: sloppy vs. genre swing",
         body=(
             "Timing tightness reads differently depending on genre. Tight, "
-            "quantized timing is expected in electronic/techno; hip-hop and "
+            "quantized timing is expected in electronic/techno, while hip-hop and "
             "lo-fi commonly use intentional swing or microtiming as a "
             "genre feature, not a mistake - trap hi-hats in particular are "
             "often deliberately 1/16-quantized rolls rather than dead-on the "
@@ -256,16 +256,16 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "and fuller, not looser. To find what's actually carrying a "
             "track's groove - useful context for judging whether looseness "
             "there matters - mute candidate instruments one at a time and "
-            "listen for which one the pulse depends on; it's often bass and "
+            "listen for which one the pulse depends on. It's often bass and "
             "drums together, but not always."
         ),
         source=(
-            "https://beatkitchen.io/guides/electronic-music/01-genre-landscape/ ; "
-            "https://strongmocha.com/creator-sound-design/midi-timing/ ; "
-            "https://musicproductionwiki.com/articles/how-to-use-groove-and-swing-in-music.html ; "
+            "https://beatkitchen.io/guides/electronic-music/01-genre-landscape/  |  "
+            "https://strongmocha.com/creator-sound-design/midi-timing/  |  "
+            "https://musicproductionwiki.com/articles/how-to-use-groove-and-swing-in-music.html  |  "
             "Dennis DeSantis, Making Music: 74 Creative Strategies for "
             "Electronic Music Producers, 'Bass Lines and Kick Drums as a "
-            "Single Composite,' pp.158-161, books/MakingMusic_DennisDeSantis.pdf ; "
+            "Single Composite,' pp.158-161, books/MakingMusic_DennisDeSantis.pdf  |  "
             "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
             "'Adjust the Timing' and groove-diagnostic sections, excerpted in "
             "books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf"
@@ -282,7 +282,7 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "sound's brightness lives in the transient, not the sustained "
             "tail. A slow compressor attack (roughly 30ms and up) lets more "
             "of that initial transient through un-clamped, reading as "
-            "brighter and more energetic; a fast attack (down around 3ms) "
+            "brighter and more energetic. A fast attack (down around 3ms) "
             "suppresses the transient and darkens/mellows the sound. Neither "
             "is 'correct' - it depends on whether the material needs more "
             "bite or needs taming. A clearly-defined transient is generally "
@@ -297,7 +297,7 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
         source=(
             "game-audio sound-design chapter excerpts, Pro Techniques for "
             "Sound Design, pp.129-131, excerpted in "
-            "books/Pro+Techniques+for+Sound+Design+.pdf ; "
+            "books/Pro+Techniques+for+Sound+Design+.pdf  |  "
             "Cristofer Odqvist, Making Sound, 'Time for Attack' and "
             "Compression chapter, excerpted in books/document (1).pdf"
         ),
@@ -329,7 +329,7 @@ TECHNIQUE_CHUNKS: list[KnowledgeChunk] = [
             "relationships affect how compatible they sound - this is the "
             "basis of 'harmonic mixing.' Keys close together on the circle "
             "of fifths (a fifth apart, e.g. C major and G major) share most "
-            "of their notes and tend to combine cleanly; keys far apart on "
+            "of their notes and tend to combine cleanly. Keys far apart on "
             "the circle (e.g. C major and its tritone, Gb major) share the "
             "fewest notes and are more likely to clash when stacked. A "
             "relative major/minor pair (e.g. C major and A minor) is the "
@@ -368,7 +368,7 @@ SKILL_CHUNKS: list[KnowledgeChunk] = [
             "sometimes with audible distortion in the upper-mids."
         ),
         source=(
-            "https://babyaud.io/blog/fix-a-muddy-mix ; mastering-chapter "
+            "https://babyaud.io/blog/fix-a-muddy-mix  |  mastering-chapter "
             "excerpts, The Art of Mastering in Music, pp.61-63, excerpted in "
             "books/The_Art_of_Mastering_in_Music_-_Final.pdf"
         ),
@@ -403,7 +403,7 @@ SKILL_CHUNKS: list[KnowledgeChunk] = [
         ),
         source=(
             "Wessel Oltheten, Mixing with Impact, p.42, excerpted in "
-            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf ; "
+            "books/Mixing_Techniques_for_Audio_-_FINAL.pdf  |  "
             "Bobby Owsinski, The Mixing Engineer's Handbook (5th ed.), "
             "excerpted in books/toaz.info-the-mixing-engineerx27s-handbook-5thedition-pr_e434c4153559f17aaa79f1087a3557a6.pdf"
         ),
@@ -420,7 +420,7 @@ SKILL_CHUNKS: list[KnowledgeChunk] = [
             "cancellation is easy to miss unless it's actively checked for."
         ),
         source=(
-            "https://www.sonible.com/blog/stereo-to-mono/ ; Wessel Oltheten, "
+            "https://www.sonible.com/blog/stereo-to-mono/  |  Wessel Oltheten, "
             "Mixing with Impact, p.62, excerpted in "
             "books/Mixing_Techniques_for_Audio_-_FINAL.pdf"
         ),

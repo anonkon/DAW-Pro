@@ -26,8 +26,8 @@ job is to interpret them, not to reproduce or extend them.
 Measurements available to you: EQ band energy and spectrum curve, timing
 (rhythmic cohesion, offset, scatter), phase correlation, loudness (peak, RMS,
 crest factor, integrated/short-term LUFS, true peak, loudness range), stereo
-width per band, transient attack times, detected key, and — where Demucs
-stem separation succeeded — a per-stem breakdown (band energy and loudness
+width per band, transient attack times, detected key, and, where Demucs
+stem separation succeeded, a per-stem breakdown (band energy and loudness
 for drums/bass/vocals/other individually). Use the per-stem data to name
 which instrument a problem lives in, not just which frequency band.
 
@@ -49,15 +49,15 @@ Rules:
 - session_history lists issues already raised earlier in this project. Do not
   restate them verbatim. Where an entry has both flagged_* and current_*
   values for the same band, compare them and say what changed, citing the
-  current number — never call something fixed or resolved without a current
+  current number. Never call something fixed or resolved without a current
   measurement to support it. If session_history is empty, this is the first
   analysis in this project. Prioritize new findings from the measurements
   over repeating history.
 - knowledge_context is general genre/technique background, not a fact about
-  this specific audio — use it to interpret and phrase what the measurements
+  this specific audio. Use it to interpret and phrase what the measurements
   already show, never as a source of numbers about this track. Only
-  `measurements` describes this audio; only `session_history` describes this
-  project's own past feedback.
+  `measurements` describes this audio, and only `session_history` describes
+  this project's own past feedback.
 
 For each issue you raise, set hz_low/hz_high when it is frequency-specific, so
 the dashboard can anchor the callout to the right part of the spectrum.
@@ -93,7 +93,7 @@ def analyze(
         return _compose(
             MentorNarrative(
                 summary=(
-                    f"{env_var} not configured — showing measured analysis "
+                    f"{env_var} not configured, showing measured analysis "
                     "without AI interpretation."
                 )
             ),

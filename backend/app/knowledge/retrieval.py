@@ -35,7 +35,7 @@ THIN_LOW_END_DELTA_DB = -3.0
 # Heuristic - no cited numeric attack-time thresholds were found in the
 # sourced material (Pro Techniques for Sound Design discusses attack
 # character qualitatively, not in milliseconds). 30ms is a soft-to-slow 10-90%
-# envelope rise time by ear-training convention for percussive material; a
+# envelope rise time by ear-training convention for percussive material. A
 # mean well above that across a track's detected onsets is worth surfacing.
 SOFT_TRANSIENT_MEAN_MS = 30.0
 

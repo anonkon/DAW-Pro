@@ -65,7 +65,7 @@ LRA_HIGH_PCT = 95.0
 
 # ITU-R BS.1770-5 Annex 2: 4x oversampling (at least 192kHz total) is the
 # summary-step guidance for estimating true-peak level between samples. The
-# spec's own reference filter is a specific 48-tap/4-phase FIR; we use
+# spec's own reference filter is a specific 48-tap/4-phase FIR. We use
 # scipy's polyphase resampler instead, which oversamples and low-pass
 # filters in one step - the spec permits any filter that "gives similar or
 # superior results" to its reference implementation, and also notes the
@@ -409,11 +409,11 @@ def _stereo_width_db(
 ) -> dict[str, float] | None:
     """Per-band side-energy relative to mid-energy, in dB.
 
-    Positive means that band is wider than centred; strongly positive in the
-    low bands is the classic "wide bass" problem, since summing to mono
+    Positive means that band is wider than centred, and strongly positive in
+    the low bands is the classic "wide bass" problem, since summing to mono
     partially cancels it. Reuses the mid-signal spectrum already computed for
-    _as_mono(y_raw) - mid is exactly (L+R)/2, the same average _as_mono takes
-    - so only the side signal (L-R)/2 needs a fresh STFT here.
+    _as_mono(y_raw), since mid is exactly (L+R)/2, the same average
+    _as_mono takes, so only the side signal (L-R)/2 needs a fresh STFT here.
 
     None for mono sources - there's no stereo image to measure.
     """
