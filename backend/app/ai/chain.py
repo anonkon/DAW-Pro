@@ -121,10 +121,19 @@ def _build_llm():
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
+        # No temperature: it is removed on the current Anthropic models
+        # (claude-opus-5 and the 4.7/4.8 family) and sending it returns a 400.
+        # The analytical grounding the other providers get from temperature=0.3
+        # comes from the system prompt here instead.
+        #
+        # max_tokens is explicit because langchain-anthropic defaults to 1024,
+        # and thinking is on by default on claude-opus-5 - thinking and the
+        # structured-output response share that budget, so the default would
+        # truncate the mentor narrative partway through.
         return ChatAnthropic(
             model=settings.anthropic_model,
             anthropic_api_key=settings.anthropic_api_key,
-            temperature=0.3,
+            max_tokens=8192,
         )
 
     if provider == "openai":
