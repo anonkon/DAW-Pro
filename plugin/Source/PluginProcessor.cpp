@@ -29,11 +29,34 @@ DAWproBridgeProcessor::DAWproBridgeProcessor()
 
 void DAWproBridgeProcessor::timerCallback()
 {
+    if (stopFired.exchange(false, std::memory_order_acquire))
+        submitPlayedSpan();
+
     if (! armFired.exchange(false, std::memory_order_acquire))
         return;
 
     // The downbeat has passed, so the window ending here starts on a bar line.
     submit(captureBuffer.snapshot(captureWindowSamples()), captureBuffer.getSampleRate());
+}
+
+void DAWproBridgeProcessor::submitPlayedSpan()
+{
+    if (! getSettings().analyzeOnStop)
+        return;
+
+    const auto played = playEndSamples.load(std::memory_order_relaxed)
+                      - playStartSamples.load(std::memory_order_relaxed);
+
+    // Anything shorter than this is a stray transport blip (a nudge of the
+    // playhead, a stop immediately after a stop), not a take worth analysing.
+    const auto minimumSamples = (int64_t) (2.0 * captureBuffer.getSampleRate());
+    if (played < minimumSamples)
+        return;
+
+    // The rolling buffer only holds the last minute, so a longer pass is
+    // necessarily truncated to its most recent portion.
+    const auto capped = juce::jmin<int64_t>(played, captureBuffer.getCapacitySamples());
+    submit(captureBuffer.snapshot((int) capped), captureBuffer.getSampleRate());
 }
 
 DAWproBridgeProcessor::~DAWproBridgeProcessor()
@@ -79,6 +102,22 @@ void DAWproBridgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         {
             if (const auto bpm = position->getBpm())
                 currentBpm.store(*bpm, std::memory_order_relaxed);
+
+            // Transport edges. Ableton keeps calling processBlock while stopped,
+            // so "is the host playing" is the only way to know which part of the
+            // rolling buffer is the take the user just performed.
+            const bool playing = position->getIsPlaying();
+            const bool previouslyPlaying = wasPlaying.exchange(playing, std::memory_order_relaxed);
+            const auto writeHead = captureBuffer.getTotalSamplesWritten();
+
+            if (playing && ! previouslyPlaying)
+                playStartSamples.store(writeHead, std::memory_order_relaxed);
+
+            if (previouslyPlaying && ! playing)
+            {
+                playEndSamples.store(writeHead, std::memory_order_relaxed);
+                stopFired.store(true, std::memory_order_release);
+            }
 
             int numerator = 4;
             if (const auto ts = position->getTimeSignature())
@@ -147,6 +186,7 @@ void DAWproBridgeProcessor::getStateInformation(juce::MemoryBlock& destData)
     tree.setProperty("genre", current.genre, nullptr);
     tree.setProperty("captureBars", current.captureBars, nullptr);
     tree.setProperty("armToBar", current.armToBar, nullptr);
+    tree.setProperty("analyzeOnStop", current.analyzeOnStop, nullptr);
 
     juce::MemoryOutputStream stream(destData, false);
     tree.writeToStream(stream);
@@ -171,6 +211,7 @@ void DAWproBridgeProcessor::setStateInformation(const void* data, int sizeInByte
     restored.genre = tree.getProperty("genre").toString();
     restored.captureBars = (int) tree.getProperty("captureBars", 16);
     restored.armToBar = (bool) tree.getProperty("armToBar", false);
+    restored.analyzeOnStop = (bool) tree.getProperty("analyzeOnStop", false);
 
     {
         const juce::ScopedLock lock(stateLock);

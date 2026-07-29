@@ -25,6 +25,9 @@ public:
         int captureBars = 16;
         // Wait for the next downbeat before taking the snapshot.
         bool armToBar = false;
+        // Analyse automatically when the host transport stops, using the span
+        // that was actually played rather than the fixed captureBars window.
+        bool analyzeOnStop = false;
     };
 
     enum class Phase { Idle, Working, Done, Failed };
@@ -106,6 +109,10 @@ private:
     void setStatus(Phase phase, const juce::String& message, float progress,
                     const juce::String& resultJson = {});
     void submit(juce::AudioBuffer<float> audio, double sampleRate);
+
+    /** Submits the span between the last transport start and stop, when
+        analyzeOnStop is enabled. Called from the timer, never the audio thread. */
+    void submitPlayedSpan();
     void cacheReferenceSpectrum(const juce::String& resultJson);
 
     CaptureBuffer captureBuffer;
@@ -122,6 +129,14 @@ private:
     std::atomic<bool> armPending { false };
     std::atomic<bool> armFired { false };
     std::atomic<double> lastPpq { 0.0 };
+
+    // Transport-stop capture. The audio thread edge-detects play/stop and
+    // records where the write head was at each edge; the timer does the actual
+    // submit, since nothing that allocates or blocks may happen in processBlock.
+    std::atomic<bool> wasPlaying { false };
+    std::atomic<bool> stopFired { false };
+    std::atomic<int64_t> playStartSamples { 0 };
+    std::atomic<int64_t> playEndSamples { 0 };
 
     mutable juce::CriticalSection stateLock;
     Settings settings;

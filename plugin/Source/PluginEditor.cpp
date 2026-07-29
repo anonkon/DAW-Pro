@@ -27,6 +27,7 @@ namespace
         object->setProperty("genre", s.genre);
         object->setProperty("captureBars", s.captureBars);
         object->setProperty("armToBar", s.armToBar);
+        object->setProperty("analyzeOnStop", s.analyzeOnStop);
         return { object };
     }
 
@@ -77,6 +78,8 @@ DAWproBridgeEditor::DAWproBridgeEditor(DAWproBridgeProcessor& p)
                                       updated.captureBars = (int) object->getProperty("captureBars");
                                   if (object->hasProperty("armToBar"))
                                       updated.armToBar = (bool) object->getProperty("armToBar");
+                                  if (object->hasProperty("analyzeOnStop"))
+                                      updated.analyzeOnStop = (bool) object->getProperty("analyzeOnStop");
                                   processorRef.setSettings(updated);
                               }
                           }

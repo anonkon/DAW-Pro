@@ -156,6 +156,11 @@
       <label for="armToBar" style="margin:0">Start capture on the next bar</label>
     </div>
 
+    <div class="check">
+      <input type="checkbox" id="analyzeOnStop" />
+      <label for="analyzeOnStop" style="margin:0">Analyze when playback stops</label>
+    </div>
+
     <button class="primary" id="analyze">Analyze</button>
     <div class="progress hidden" id="progressWrap"><i id="progress"></i></div>
     <p class="status" id="status">Idle - play some audio, then click Analyze</p>
@@ -235,6 +240,8 @@
       TEXT_FIELDS.forEach((f) => $(f).addEventListener("input", () => push({ [f]: $(f).value })));
       $("captureBars").addEventListener("change", () => push({ captureBars: Number($("captureBars").value) }));
       $("armToBar").addEventListener("change", () => push({ armToBar: $("armToBar").checked }));
+      $("analyzeOnStop").addEventListener("change", () =>
+        push({ analyzeOnStop: $("analyzeOnStop").checked }));
       $("sessionSelect").addEventListener("change", () => {
         const chosen = sessions.find((s) => s.id === $("sessionSelect").value);
         push({ sessionId: chosen?.id ?? "", personaId: chosen?.persona_id ?? "" });
@@ -268,6 +275,7 @@
         });
         $("captureBars").value = String(s.captureBars ?? 16);
         $("armToBar").checked = !!s.armToBar;
+        $("analyzeOnStop").checked = !!s.analyzeOnStop;
         if (s.sessionId) $("sessionSelect").value = s.sessionId;
       }
 

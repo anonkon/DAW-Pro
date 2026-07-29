@@ -28,6 +28,14 @@ public:
     double getSampleRate() const noexcept { return sampleRate; }
     int getCapacitySamples() const noexcept { return capacitySamples; }
 
+    /** Total samples ever pushed, i.e. the position of the write head. Used to
+        measure how much audio went by between two moments (transport start and
+        stop) without having to copy anything. */
+    int64_t getTotalSamplesWritten() const noexcept
+    {
+        return totalSamplesWritten.load(std::memory_order_relaxed);
+    }
+
 private:
     juce::AudioBuffer<float> storage;
     std::atomic<int64_t> totalSamplesWritten { 0 };
