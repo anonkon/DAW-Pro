@@ -23,7 +23,14 @@ namespace
         }
 
         writer->writeFromAudioSampleBuffer(audio, 0, audio.getNumSamples());
-        // Destroying `writer` here flushes the WAV header/data into wavData.
+
+        // The writer has to be destroyed *before* wavData is read. WavAudioFormat
+        // only patches the RIFF and data chunk lengths in its destructor, by
+        // seeking back to the top of the stream. Letting `writer` fall out of
+        // scope at the end of the function is too late: the return value is
+        // copied first, so the caller gets a header still claiming zero frames
+        // and uploads megabytes of audio that every reader sees as empty.
+        writer.reset();
 
         return wavData;
     }
